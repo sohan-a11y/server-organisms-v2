@@ -46,7 +46,44 @@ chem = Chemistry()
 brain = Brain("colony-leader", llm_ask=muse_client.ask_llm)
 peers = [Brain(f"peer-{i}") for i in range(3)]
 _lock = threading.RLock()
-state = {"blocked": 0, "allowed": 0, "pending_rules": [], "active_rules": [], "last_verdict": None}
+state = {"blocked": 0, "allowed": 0, "pending_rules": [], "active_rules": [], "last_verdict": None,
+         "routes": {}, "save_ok": True}
+
+
+def _route_key(method, path):
+    clean = re.split(r"[\s?]", path)[0]  # payloads after the id are not new APIs
+    seg = [("{id}" if (s.isdigit() or (s and not re.fullmatch(r"[a-z0-9_-]+", s))) else s) for s in clean.split("/")]
+    return f"{method} {'/'.join(seg)}"
+
+
+MAX_ROUTES = 200
+
+
+def _route_stat(method, path, kind, cls=None):
+    key = _route_key(method, path)
+    with _lock:
+        if key not in state["routes"] and len(state["routes"]) >= MAX_ROUTES:
+            key = "OTHER /{overflow}"  # bounded cardinality: floods fold into one bucket
+        r = state["routes"].setdefault(key, {"allowed": 0, "blocked": 0, "sensed": 0, "attacks": {}, "last": ""})
+        r[kind] = r.get(kind, 0) + 1
+        if cls:
+            r["attacks"][cls] = r["attacks"].get(cls, 0) + 1
+        r["last"] = time.strftime("%H:%M:%S")
+
+
+_inv_cache = {"mtime": None, "apis": []}
+
+
+def _inventory():
+    path = os.environ.get("INVENTORY_FILE", "/adoption/apis.json")
+    try:
+        mtime = os.path.getmtime(path)
+        if _inv_cache["mtime"] != mtime:
+            with open(path) as f:
+                _inv_cache.update(mtime=mtime, apis=json.load(f).get("apis", []))
+    except Exception:
+        return []
+    return _inv_cache["apis"]
 
 SQLI = [r"or\s+\d+\s*=\s*\d+", r"union\s+(all\s+)?select", r"'\s*or\s*'", r"--", r";\s*drop",
         r"select\s+.+\s+from\s+", r"insert\s+into", r"drop\s+table", r"\b1\s*=\s*1\b",
@@ -200,6 +237,10 @@ def replay_gate(cls):
 def _propose_task(cls):
     try:
         propose_immunity(cls, claimed=True)
+    except Exception:
+        import traceback
+
+        traceback.print_exc()  # proposal failures must be visible in logs
     finally:
         _propose_slots.release()
 
@@ -283,7 +324,7 @@ def _save_inner():
         with _lock:  # consistent snapshot: no mutation during export
             payload = json.dumps({"brain": brain.export_state(), "life": pop.export_state(),
                                   "active": state["active_rules"], "pending": state["pending_rules"],
-                                  "blocked": state["blocked"], "allowed": state["allowed"]})
+                                  "blocked": state["blocked"], "allowed": state["allowed"], "routes": state["routes"]})
         d = os.path.dirname(STATE_FILE)
         if d:
             os.makedirs(d, exist_ok=True)
@@ -305,6 +346,7 @@ def _load():
         pop.import_state(data.get("life"))
         state["active_rules"], state["pending_rules"] = data.get("active", []), data.get("pending", [])
         state["blocked"], state["allowed"] = data.get("blocked", 0), data.get("allowed", 0)
+        state["routes"] = data.get("routes", {})
         pkt = brain.teach_packet()
         for p in peers:
             p.receive_teaching(pkt)
@@ -357,7 +399,8 @@ def organism_state():
         return jsonify(mode=MODE, lease_active=lease_active(), blocked=state["blocked"], allowed=state["allowed"],
                        active_rules=state["active_rules"], pending_rules=state["pending_rules"],
                        last_verdict=state["last_verdict"], grid=grid.snapshot(), life=pop.snapshot(),
-                       brain=brain.snapshot(), peers=[p.snapshot() for p in peers], chemistry=chem.snapshot())
+                       brain=brain.snapshot(), peers=[p.snapshot() for p in peers], chemistry=chem.snapshot(),
+                       routes=state["routes"], inventory=_inventory())
 
 
 @app.post("/organism/approve")
@@ -402,7 +445,7 @@ def reset():
         return jsonify(error="organisms halted by supervisor (lease withdrawn)"), 403
     with _lock:
         grid.reset()
-        state.update(blocked=0, allowed=0, pending_rules=[], active_rules=[], last_verdict=None)
+        state.update(blocked=0, allowed=0, pending_rules=[], active_rules=[], last_verdict=None, routes={})
     audit("RESET", "")
     _save()
     return jsonify(ok=True)
@@ -439,6 +482,7 @@ def proxy(path):
                 _inflight.discard(cls)
         is_active = any(r["class"] == cls for r in state["active_rules"])
         if is_active:
+            _route_stat(request.method, full, "blocked", cls)
             with _lock:
                 state["blocked"] += 1
                 grid.wound(1.0)
@@ -446,6 +490,7 @@ def proxy(path):
             audit("BLOCK", cls)
             return jsonify(blocked=True, by="server-organisms colony", **{"class": cls},
                            reason="immunity rule active for this attack class"), 403
+        _route_stat(request.method, full, "sensed", cls)
         with _lock:
             grid.wound(0.7)
         chem.emit("attack")
@@ -466,6 +511,7 @@ def proxy(path):
             if total > cap:
                 return jsonify(error="upstream response exceeds size cap"), 502
             chunks.append(chunk)
+        _route_stat(request.method, full, "allowed")
         with _lock:
             state["allowed"] += 1
         resp = Response(b"".join(chunks), status=r.status_code,

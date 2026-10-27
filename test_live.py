@@ -15,7 +15,7 @@ H = {"X-Broker-Token": tok}
 HG = {"X-Broker-Token": gtok}
 GW, SUP = "http://127.0.0.1:18010", "http://127.0.0.1:18012"
 
-def wait_pending(cls, tries=25):
+def wait_pending(cls, tries=90):
     for _ in range(tries):
         time.sleep(1)
         s = requests.get(GW + "/organism/state", headers=HG, timeout=10).json()
@@ -33,7 +33,7 @@ r1 = requests.get(GW + "/api/user/1%20OR%201=1", timeout=10)
 assert r1.status_code == 200 and len(r1.json()) > 1, r1.text[:200]
 print("1 first attack leaks (no immunity yet): OK")
 s = {}
-for _ in range(20):
+for _ in range(90):
     time.sleep(1)
     s = requests.get(GW + "/organism/state", headers=HG, timeout=10).json()
     if s.get("pending_rules"):

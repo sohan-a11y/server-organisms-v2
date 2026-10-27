@@ -188,3 +188,31 @@ def test_replay_normals_separator_only_not_vacuous(monkeypatch):
     monkeypatch.setenv("REPLAY_NORMALS", ",")
     gate = gw.replay_gate("sql-injection")
     assert gate["normals_replayed"] > 0 and gate["upstream_replayed"] is True
+
+
+def test_adopt_scanner(tmp_path):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "adopt", os.path.join(os.path.dirname(__file__), "..", "tools", "adopt.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    (tmp_path / "app.py").write_text(
+        "from flask import Flask\napp = Flask(__name__)\n"
+        "@app.get('/api/items')\ndef items(): pass\n"
+        "@app.post('/api/items')\ndef create(): pass\n", encoding="utf-8")
+    (tmp_path / "srv.js").write_text(
+        "app.get('/api/users', h); router.delete('/api/users/:id', h);", encoding="utf-8")
+    found = {(a["method"], a["path"]) for a in mod.scan(str(tmp_path))}
+    assert ("GET", "/api/items") in found and ("POST", "/api/items") in found
+    assert ("GET", "/api/users") in found and ("DELETE", "/api/users/:id") in found
+
+
+def test_gateway_route_stats_key():
+    os.environ.setdefault("GATEWAY_TOKEN", "x" * 24)
+    import app as gw
+
+    assert gw._route_key("GET", "/api/user/42") == "GET /api/user/{id}"
+    assert gw._route_key("POST", "/api/comment") == "POST /api/comment"
+    assert gw._route_key("GET", "/api/user/1 OR 1=1") == "GET /api/user/{id}"
+    assert gw._route_key("GET", "/api/user/(id)") == "GET /api/user/{id}"

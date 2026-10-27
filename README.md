@@ -6,7 +6,20 @@ Organisms live between the internet and your API on *your* server. They sense ex
 
 Darktrace watches enterprises like an immune system. Cloudflare shields at global scale. This is the living defence for the rest of us: indie devs and small teams whose APIs get nothing from enterprise contracts today.
 
-## Install (one command)
+## Make YOUR APIs living (the actual product)
+
+```bash
+python tools/adopt.py <path-to-your-repo>   # Flask / FastAPI / Express
+```
+
+The scanner discovers every API route in your code (no changes to your app),
+writes `adoption/` (route inventory, replay config, steps), and the gateway
+colony then sits in front of your app. Open the dashboard: **every one of
+your APIs is a living node in 3D** — traffic, attacks sensed, blocks and
+immunity per route, live. Set `UPSTREAM_URL` to your app and route traffic
+through the gateway.
+
+## Install (bundled demo, one command)
 
 ```powershell
 .\install.ps1   # Linux/macOS: ./install.sh

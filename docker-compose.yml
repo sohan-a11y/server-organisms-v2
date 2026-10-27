@@ -43,7 +43,9 @@ services:
       - "127.0.0.1:18010:18010"
     volumes:
       - shared-state:/shared
+      - ./adoption:/adoption:ro
     environment:
+      - INVENTORY_FILE=/adoption/apis.json
       - UPSTREAM_URL=${UPSTREAM_URL:-http://demo-api:18011}
       - REPLAY_NORMALS=${REPLAY_NORMALS:-}
       - REPLAY_USER_ID=${REPLAY_USER_ID:-1}

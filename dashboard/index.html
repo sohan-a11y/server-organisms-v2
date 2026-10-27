@@ -3,75 +3,103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Server Organisms — Living Immune Layer</title>
+<title>Server Organisms — Living APIs in 3D</title>
 <style>
   :root { --bg:#f4f6f1; --panel:#ffffff; --line:#d9ded2; --text:#1d2419; --dim:#66705f; --amber:#b97d0a; --red:#c62f34; --green:#2e7d3a; --blue:#2563a8; --mono: ui-monospace, Consolas, monospace; }
-  * { box-sizing: border-box; }
+  * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font-family: Georgia, serif; }
-  header { display:flex; justify-content:space-between; align-items:baseline; padding:18px 24px 10px; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:8px; }
-  header h1 { font-size:22px; margin:0; }
-  header p { margin:0; color:var(--dim); font-family:var(--mono); font-size:12px; }
-  .flow { display:flex; padding:16px 24px 4px; flex-wrap:wrap; }
-  .step { flex:1 1 150px; min-width:140px; background:var(--panel); border:1.5px solid var(--line); padding:13px 11px; text-align:center; }
-  .step .num { width:32px; height:32px; border-radius:50%; margin:0 auto 7px; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; background:#e8ede2; color:var(--dim); border:2px solid var(--line); }
+  header { display:flex; justify-content:space-between; align-items:baseline; padding:16px 24px 10px; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:8px; }
+  header h1 { font-size:22px; margin:0; } header p { margin:0; color:var(--dim); font-family:var(--mono); font-size:12px; }
+  .kpis { display:flex; gap:10px; padding:12px 24px 0; flex-wrap:wrap; }
+  .kpi { background:var(--panel); border:1px solid var(--line); padding:10px 16px; min-width:130px; }
+  .kpi b { font-size:21px; display:block; } .kpi span { font-family:var(--mono); font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.8px; }
+  .flow { display:flex; padding:14px 24px 2px; flex-wrap:wrap; }
+  .step { flex:1 1 140px; min-width:130px; background:var(--panel); border:1.5px solid var(--line); padding:11px 9px; text-align:center; }
+  .step .num { width:30px; height:30px; border-radius:50%; margin:0 auto 6px; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; background:#e8ede2; color:var(--dim); border:2px solid var(--line); }
   .step.active { border-color:var(--amber); background:#fff8e6; } .step.active .num { background:var(--amber); color:#fff; border-color:var(--amber); }
   .step.done { border-color:var(--green); background:#edf7ee; } .step.done .num { background:var(--green); color:#fff; border-color:var(--green); }
   .step.bad { border-color:var(--red); background:#fdecec; } .step.bad .num { background:var(--red); color:#fff; border-color:var(--red); }
-  .step b { display:block; font-size:14px; } .step span { font-size:11.5px; color:var(--dim); line-height:1.45; display:block; }
-  .arrow { align-self:center; padding:0 5px; color:var(--dim); }
-  main { display:grid; grid-template-columns:330px 1fr 360px; gap:14px; padding:14px; }
-  @media (max-width:1100px) { main { grid-template-columns:1fr; } }
-  section { background:var(--panel); border:1px solid var(--line); padding:16px; }
-  h2 { font-size:12.5px; font-family:var(--mono); text-transform:uppercase; letter-spacing:1.1px; color:var(--dim); margin:0 0 11px; }
-  button { display:block; width:100%; text-align:left; background:#eef2e8; color:var(--text); border:1px solid var(--line); padding:10px 12px; margin:7px 0; font-family:var(--mono); font-size:12.5px; cursor:pointer; }
+  .step b { display:block; font-size:13.5px; } .step span { font-size:11px; color:var(--dim); line-height:1.4; display:block; }
+  .arrow { align-self:center; padding:0 4px; color:var(--dim); }
+  main { display:grid; grid-template-columns:320px 1fr 370px; gap:14px; padding:14px; }
+  @media (max-width:1150px) { main { grid-template-columns:1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); padding:15px; }
+  h2 { font-size:12px; font-family:var(--mono); text-transform:uppercase; letter-spacing:1.1px; color:var(--dim); margin:0 0 10px; }
+  button { display:block; width:100%; text-align:left; background:#eef2e8; color:var(--text); border:1px solid var(--line); padding:9px 11px; margin:6px 0; font-family:var(--mono); font-size:12px; cursor:pointer; }
   button:focus-visible, input:focus-visible { outline:2px solid var(--amber); outline-offset:2px; }
-  button.danger { border-color:#e3b3b5; color:#a11d21; } button.heal { border-color:#a9c9ad; }
-  button:disabled { opacity:.45; }
-  canvas { width:100%; aspect-ratio:1; display:block; background:#f0f3ec; border:1px solid var(--line); }
-  .meta, .log { font-family:var(--mono); font-size:11.5px; line-height:1.65; color:var(--dim); }
-  .meta b, .log b { color:var(--text); }
-  pre { font-family:var(--mono); font-size:11.5px; white-space:pre-wrap; background:#f0f3ec; border:1px solid var(--line); padding:10px; max-height:200px; overflow:auto; }
+  button.danger { border-color:#e3b3b5; color:#a11d21; } button.heal { border-color:#a9c9ad; } button:disabled { opacity:.45; }
+  #scene { width:100%; height:430px; display:block; background:linear-gradient(180deg,#fbfcfa,#eef3e9); border:1px solid var(--line); cursor:grab; }
+  #scene:active { cursor:grabbing; }
+  canvas.grid2d { width:100%; aspect-ratio:2.4; display:block; background:#f0f3ec; border:1px solid var(--line); }
+  .meta, .log { font-family:var(--mono); font-size:11.5px; line-height:1.6; color:var(--dim); } .meta b, .log b { color:var(--text); }
+  pre { font-family:var(--mono); font-size:11.5px; white-space:pre-wrap; background:#f0f3ec; border:1px solid var(--line); padding:10px; max-height:190px; overflow:auto; }
   input[type=text] { width:100%; background:#fff; color:var(--text); border:1px solid var(--line); padding:9px; font-family:var(--mono); font-size:12px; }
-  .bar { height:9px; background:#e8ede2; margin:3px 0 9px; } .bar i { display:block; height:100%; background:var(--blue); }
+  .bar { height:8px; background:#e8ede2; margin:3px 0 8px; } .bar i { display:block; height:100%; background:var(--blue); }
+  .api { border:1px solid var(--line); border-left:4px solid var(--green); padding:8px 10px; margin:7px 0; cursor:pointer; background:#fbfcfa; }
+  .api:hover { background:#f2f6ee; } .api.sel { border-color:var(--blue); border-left-color:var(--blue); background:#eef4fb; }
+  .api.underattack { border-left-color:var(--red); } .api.sensed { border-left-color:var(--amber); }
+  .api .route { font-family:var(--mono); font-size:12px; color:var(--text); word-break:break-all; }
+  .api .nums { font-family:var(--mono); font-size:10.5px; color:var(--dim); }
+  .badge { display:inline-block; font-family:var(--mono); font-size:9.5px; padding:1px 6px; border-radius:8px; background:#e8ede2; color:var(--dim); margin-left:5px; }
+  .badge.red { background:#fdecec; color:var(--red); } .badge.amber { background:#fff3d6; color:var(--amber); } .badge.green { background:#edf7ee; color:var(--green); }
   footer { padding:0 24px 20px; color:var(--dim); font-family:var(--mono); font-size:11.5px; line-height:1.7; }
   @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
 </style>
 </head>
 <body>
-<header><h1>Server Organisms</h1><p>LIVING IMMUNE LAYER &middot; GATEWAY :18010 &middot; SUPERVISOR :18012</p></header>
+<header><h1>Server Organisms</h1><p>EVERY API, ALIVE &middot; 3D COLONY VIEW &middot; DRAG TO ORBIT &middot; CLICK AN API NODE</p></header>
+<div style="margin:12px 24px 0;background:#eaf3e4;border:1.5px solid #a9c9ad;padding:12px 16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
+  <div><b>Bring your own app — make its APIs living:</b> <span style="font-family:var(--mono);font-size:12.5px">python tools/adopt.py &lt;path-to-your-repo&gt;</span> <span style="color:var(--dim);font-size:12.5px">(Flask / FastAPI / Express — no code changes in your app)</span></div>
+  <div style="font-family:var(--mono);font-size:11px;color:var(--dim)">NOW SHOWING: BUNDLED DEMO APIs — ADOPT YOURS TO REPLACE THEM</div>
+</div>
+<div class="kpis">
+  <div class="kpi"><b id="k-apis">—</b><span>APIs alive</span></div>
+  <div class="kpi"><b id="k-req">—</b><span>Requests passed</span></div>
+  <div class="kpi"><b id="k-blocked">—</b><span>Attacks blocked</span></div>
+  <div class="kpi"><b id="k-immune">—</b><span>Immunities active</span></div>
+  <div class="kpi"><b id="k-cells">—</b><span>Tissue cells alive</span></div>
+  <div class="kpi"><b id="k-phase">—</b><span>Colony phase</span></div>
+</div>
 <div class="flow">
-  <div class="step" id="step-1"><div class="num">1</div><b>Your API lives</b><span>Traffic flows through the colony to your app.</span></div><div class="arrow">→</div>
-  <div class="step" id="step-2"><div class="num">2</div><b>Attack sensed</b><span>Exploit pattern wounds the tissue. Cells signal.</span></div><div class="arrow">→</div>
-  <div class="step" id="step-3"><div class="num">3</div><b>Immunity proposed</b><span>Muse + swarm propose a rule. Questioner challenges it.</span></div><div class="arrow">→</div>
-  <div class="step" id="step-4"><div class="num">4</div><b>Canary judges</b><span>Replay: attack must block, normal traffic must pass.</span></div><div class="arrow">→</div>
-  <div class="step" id="step-5"><div class="num">5</div><b>Immune & remembered</b><span>Rule promoted. Organism born. Brain teaches children.</span></div>
+  <div class="step" id="step-1"><div class="num">1</div><b>Your APIs live</b><span>Each route is an organism node in 3D.</span></div><div class="arrow">→</div>
+  <div class="step" id="step-2"><div class="num">2</div><b>Attack sensed</b><span>The node flashes. Tissue wounds.</span></div><div class="arrow">→</div>
+  <div class="step" id="step-3"><div class="num">3</div><b>Immunity proposed</b><span>Muse + swarm propose. Peers learn.</span></div><div class="arrow">→</div>
+  <div class="step" id="step-4"><div class="num">4</div><b>Replay judges</b><span>Attack variants block, your traffic passes.</span></div><div class="arrow">→</div>
+  <div class="step" id="step-5"><div class="num">5</div><b>Immune & remembered</b><span>Shield on the API. Survives restarts.</span></div>
 </div>
 <div id="token-banner" style="display:none;margin:12px 24px 0;background:#fff3d6;border:1.5px solid #d9a441;padding:12px 15px;font-size:13.5px">
-  <b>Demo mode — one step:</b> buttons need your token. Use the link printed by the installer, or paste BROKER_TOKEN:
-  <input id="token-in" type="text" style="width:280px"> <button id="token-go" style="display:inline-block;width:auto;padding:6px 12px">Use token</button>
+  <b>Demo mode — one step:</b> buttons need your tokens. Use the link printed by the installer, or paste the operator (BROKER) token:
+  <input id="token-in" type="text" style="width:260px"> <button id="token-go" style="display:inline-block;width:auto;padding:6px 12px">Use token</button>
 </div>
 <main>
   <section>
     <h2>Control plane (supervisor owns the lease)</h2>
-    <div style="font-size:27px;font-weight:600" id="phase">—</div>
+    <div style="font-size:25px;font-weight:600" id="phase">—</div>
     <div class="meta" id="meta">connecting…</div>
-    <button id="btn-attack">1 &nbsp; Attack through gateway (SQL injection)</button>
+    <button id="btn-attack">1 &nbsp; Attack an API (SQL injection)</button>
     <button id="btn-approve" class="heal">2 &nbsp; Approve immunity (promote rule)</button>
     <button id="btn-ask2">Attack again — should now be BLOCKED</button>
     <button id="btn-kill" class="danger">Kill switch (supervisor withdraws lease)</button>
     <button id="btn-revive">Revive colony</button>
     <button id="btn-reset">Reset demo</button>
-    <div class="meta">Mode: <b id="mode">—</b>. In suggest mode a human approves; in auto mode PASS promotes itself.</div>
-  </section>
-  <section>
-    <h2>Organism tissue — leaky NCA (16 × 16)</h2>
-    <canvas id="grid" width="480" height="480"></canvas>
-    <div class="meta" id="alive-count"></div>
+    <div class="meta">Mode: <b id="mode">—</b> · adopt your own app: <b>python tools/adopt.py &lt;your-repo&gt;</b></div>
     <h2 style="margin-top:16px">Evidence</h2>
-    <pre id="evidence">Press “Attack through gateway”.</pre>
+    <pre id="evidence">Press “Attack an API”.</pre>
+    <h2 style="margin-top:16px">Tissue — leaky NCA</h2>
+    <canvas id="grid" class="grid2d" width="640" height="266"></canvas>
+    <div class="meta" id="alive-count"></div>
   </section>
   <section>
-    <h2>Immunity rules</h2>
+    <h2>Living colony — your APIs in 3D</h2>
+    <canvas id="scene" width="900" height="430"></canvas>
+    <div class="meta" id="scene-note">Green core = gateway colony. Orbs = your APIs (bigger = more traffic). Green shield ring = immune. Amber = attack sensed. Red flash (momentary) = attack just blocked. Drag to orbit · scroll to zoom · click an orb.</div>
+    <h2 style="margin-top:14px">Selected API</h2>
+    <div class="log" id="api-detail">Click any API orb or card → its live story appears here.</div>
+  </section>
+  <section>
+    <h2>Your APIs — live per-route</h2>
+    <div id="apis">—</div>
+    <h2 style="margin-top:14px">Immunity rules</h2>
     <div class="log" id="rules">—</div>
     <h2 style="margin-top:14px">Life & chemistry</h2>
     <div class="log" id="life">—</div>
@@ -82,11 +110,10 @@
     <pre id="ask-a">—</pre>
   </section>
 </main>
-<footer>Gateway is the public entry (:18010). Your app stays behind it, unmodified. Supervisor is a separate process: it owns the lease, audit log and kill switch — the colony cannot revive itself.</footer>
+<footer>Adopt in minutes: <b>python tools/adopt.py &lt;path-to-your-repo&gt;</b> discovers every API (Flask / FastAPI / Express), then the gateway colony sits in front — no code changes in your app. Supervisor is a separate process: lease, audit, kill switch. The colony cannot revive itself.</footer>
+<script src="three.min.js"></script>
 <script>
 const GW = "http://127.0.0.1:18010", SUP = "http://127.0.0.1:18012";
-// Tokens arrive in the URL FRAGMENT (#...), never the query: fragments are not
-// sent to servers or written to access logs. Query tokens are scrubbed at once.
 const frag = new URLSearchParams(location.hash.slice(1));
 const TOKEN = frag.get("token") || sessionStorage.getItem("brokerToken") || "";
 const GWTOKEN = frag.get("gwtoken") || sessionStorage.getItem("gatewayToken") || "";
@@ -96,24 +123,175 @@ const auth = () => TOKEN ? { "X-Broker-Token": TOKEN } : {};
 const authGW = () => GWTOKEN ? { "X-Broker-Token": GWTOKEN } : {};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-let busy = false, lastClass = "sql-injection";
-
+let busy = false, lastClass = "sql-injection", selected = null, lastState = null;
+</script>
+<script>
+/* ============ 3D colony (Three.js, vendored r128) ============ */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let T = null; // {renderer, scene, camera, core, nodes:Map, particles, theta, phi, radius, target}
+function spriteLabel(text) {
+  const short = text.replace(/^(GET|POST|PUT|PATCH|DELETE) /, "").split("/").filter(Boolean).slice(-2).join("/");
+  const c = document.createElement("canvas"); c.width = 640; c.height = 120;
+  const x = c.getContext("2d"); x.font = "700 44px Consolas, monospace"; x.textAlign = "center";
+  x.lineWidth = 10; x.strokeStyle = "rgba(247,249,244,0.95)"; x.strokeText("/" + short, 320, 74);
+  x.fillStyle = "#22331c"; x.fillText("/" + short, 320, 74);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+  sp.scale.set(3.9, 0.73, 1); return sp;
+}
+function init3D() {
+  if (!window.THREE) { $("scene-note").textContent = "3D unavailable (three.min.js failed to load) — per-API cards on the right stay live."; return; }
+  try {
+    const cv = $("scene");
+    const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(cv.clientWidth, cv.clientHeight, false);
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xf4f6f1, 18, 40);
+    const camera = new THREE.PerspectiveCamera(46, cv.clientWidth / cv.clientHeight, 0.1, 100);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const key = new THREE.DirectionalLight(0xffffff, 0.8); key.position.set(6, 10, 7); key.castShadow = true; scene.add(key);
+    const fill = new THREE.DirectionalLight(0xdfead2, 0.35); fill.position.set(-7, 4, -6); scene.add(fill);
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.15, 1),
+      new THREE.MeshStandardMaterial({ color: 0x7fb069, roughness: 0.3, metalness: 0.1, emissive: 0x2c5a1e, emissiveIntensity: 0.5 }));
+    core.castShadow = true; scene.add(core);
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 24),
+      new THREE.MeshBasicMaterial({ color: 0xbfe3ae, transparent: true, opacity: 0.16, depthWrite: false }));
+    core.add(halo);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(11, 48),
+      new THREE.MeshStandardMaterial({ color: 0xe9efe1, roughness: 1 }));
+    ground.rotation.x = -Math.PI / 2; ground.position.y = -2.6; ground.receiveShadow = true; scene.add(ground);
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(150 * 3), 3));
+    const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0x5b8c4e, size: 0.14, transparent: true, opacity: 0.85 }));
+    scene.add(particles);
+    T = { renderer, scene, camera, core, particles, nodes: new Map(), theta: 0.6, phi: 1.02, radius: 15.5, dragging: false, lastBlocked: {} };
+    // orbit input
+    let px = 0, py = 0;
+    cv.addEventListener("pointerdown", e => { T.dragging = true; px = e.clientX; py = e.clientY; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener("pointermove", e => { if (!T.dragging) return; T.theta -= (e.clientX - px) * 0.005; T.phi = Math.max(0.25, Math.min(1.45, T.phi - (e.clientY - py) * 0.005)); px = e.clientX; py = e.clientY; });
+    cv.addEventListener("pointerup", e => { T.dragging = false; pick(e); });
+    cv.addEventListener("wheel", e => { e.preventDefault(); T.radius = Math.max(6, Math.min(24, T.radius + e.deltaY * 0.01)); }, { passive: false });
+    function pick(e) {
+      const r = cv.getBoundingClientRect();
+      const mouse = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      const rc = new THREE.Raycaster(); rc.setFromCamera(mouse, T.camera);
+      const hits = rc.intersectObjects([...T.nodes.values()].map(n => n.mesh));
+      if (hits.length) { selected = hits[0].object.userData.key; renderApis(lastState); renderDetail(lastState); }
+    }
+    (function loop(t) {
+      requestAnimationFrame(loop);
+      if (!REDUCED && !T.dragging) T.theta += 0.0016;
+      T.camera.position.set(T.radius * Math.sin(T.phi) * Math.cos(T.theta), T.radius * Math.cos(T.phi), T.radius * Math.sin(T.phi) * Math.sin(T.theta));
+      T.camera.lookAt(0, 0, 0);
+      core.rotation.y = t * 0.00012; core.rotation.x = Math.sin(t * 0.0002) * 0.15;
+      for (const n of T.nodes.values()) {
+        n.mesh.position.y = n.baseY + Math.sin(t * 0.001 + n.phase) * 0.12;
+        if (n.flash > 0) { n.mesh.material.emissive.setHex(0xc62f34); n.mesh.material.emissiveIntensity = n.flash; n.flash = Math.max(0, n.flash - 0.02); }
+        else if (n.sensed > 0) { n.mesh.material.emissive.setHex(0xb97d0a); n.mesh.material.emissiveIntensity = n.sensed; n.sensed = Math.max(0, n.sensed - 0.01); }
+        else { n.mesh.material.emissive.setHex(0x000000); n.mesh.material.emissiveIntensity = 0; }
+        const s = n.baseScale * (1 + 0.05 * Math.sin(t * 0.002 + n.phase)); n.mesh.scale.setScalar(s);
+        if (n.shield && n.shield.visible) n.shield.rotation.z = t * 0.001;
+      }
+      const pos = T.particles.geometry.attributes.position.array, keys = [...T.nodes.keys()];
+      for (let i = 0; i < 150; i++) {
+        const n = keys.length ? T.nodes.get(keys[i % keys.length]) : null;
+        const tt = ((t * 0.00012 * (1 + (i % 5) * 0.2)) + (i * 0.137)) % 1;
+        const dest = n ? n.mesh.position : { x: 0, y: 0, z: 0 };
+        pos[i * 3] = dest.x * tt; pos[i * 3 + 1] = dest.y * tt; pos[i * 3 + 2] = dest.z * tt;
+      }
+      T.particles.geometry.attributes.position.needsUpdate = true;
+      T.renderer.render(T.scene, T.camera);
+    })(0);
+  } catch (e) { $("scene-note").textContent = "3D failed to start (" + esc(e.message) + ") — per-API cards stay live."; T = null; }
+}
+function syncNodes(routes, inventory) {
+  if (!T) return;
+  const invKeys = new Set((inventory || []).map(a => a.method + " " + a.path.replace(/<[^>]+>/g, "{id}").replace(/:[^/]+/g, "{id}")));
+  const keys = new Set([...Object.keys(routes || {}), ...invKeys]);
+  for (const k of [...T.nodes.keys()]) if (!keys.has(k)) { T.scene.remove(T.nodes.get(k).mesh); T.scene.remove(T.nodes.get(k).line); T.nodes.delete(k); }
+  let i = 0;
+  for (const k of keys) {
+    const r = (routes || {})[k] || { allowed: 0, blocked: 0, sensed: 0, attacks: {} };
+    const traffic = (r.allowed || 0) + (r.blocked || 0) + (r.sensed || 0);
+    if (!T.nodes.has(k)) {
+      const ang = (i / Math.max(1, keys.size)) * Math.PI * 2, ring = 4.1 + (i % 3) * 0.85;
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.42, 28, 22),
+        new THREE.MeshStandardMaterial({ color: 0x8fce7e, roughness: 0.3, metalness: 0.05 }));
+      mesh.position.set(Math.cos(ang) * ring, (i % 3 - 1) * 1.15, Math.sin(ang) * ring);
+      mesh.userData.key = k;
+      const label = spriteLabel(k.replace(/^(GET|POST|PUT|PATCH|DELETE) /, "")); label.position.y = 0.85; mesh.add(label);
+      const shield = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.045, 10, 40),
+        new THREE.MeshStandardMaterial({ color: 0x2e7d3a, roughness: 0.25, metalness: 0.4, emissive: 0x1d4a17, emissiveIntensity: 0.4 }));
+      shield.visible = false; shield.rotation.x = Math.PI / 3; mesh.add(shield); n_shield = shield;
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), mesh.position.clone()]),
+        new THREE.LineBasicMaterial({ color: 0xb9c9a8, transparent: true, opacity: 0.65 }));
+      T.scene.add(line); T.scene.add(mesh);
+      mesh.castShadow = true;
+      T.nodes.set(k, { mesh, line, shield: n_shield, phase: Math.random() * 6.28, baseY: mesh.position.y, baseScale: 1, flash: 0, sensed: 0 });
+    }
+    const n = T.nodes.get(k);
+    n.baseScale = 0.75 + Math.min(1.6, Math.log10(1 + traffic) * 0.55);
+    if ((r.blocked || 0) > (T.lastBlocked[k] || 0)) n.flash = 1;
+    if ((r.sensed || 0) > (n.lastSensed || 0) && !n.flash) n.sensed = 0.7;
+    T.lastBlocked[k] = r.blocked || 0; n.lastSensed = r.sensed || 0;
+    n.mesh.material.color.setHex(r.sensed && !r.blocked ? 0xe3c878 : 0x8fce7e);
+    if (n.shield) n.shield.visible = (r.blocked || 0) > 0;  // green shield ring = immune (protected), red is only the momentary attack flash
+    i++;
+  }
+}
+/* ============ live state / panels ============ */
+function routeStatus(r, activeClasses) {
+  if (!r) return ["alive", "green"];
+  const atk = Object.keys(r.attacks || {});
+  if (r.blocked) return ["blocking " + atk.join(","), "red"];
+  if (r.sensed) return ["sensed " + atk.join(","), "amber"];
+  return ["alive", "green"];
+}
+function renderApis(s) {
+  if (!s) return;
+  const inv = s.inventory || [], routes = s.routes || {};
+  const activeClasses = new Set((s.active_rules || []).map(r => r.class));
+  const invKeys = inv.map(a => a.method + " " + a.path.replace(/<[^>]+>/g, "{id}").replace(/:[^/]+/g, "{id}"));
+  const all = [...new Set([...invKeys, ...Object.keys(routes)])];
+  $("k-apis").textContent = all.length || "0";
+  $("apis").innerHTML = all.length ? all.map(k => {
+    const r = routes[k], [label, color] = routeStatus(r, activeClasses);
+    const shield = r && r.blocked ? '<span class="badge green">IMMUNE</span>' : "";
+    return '<div class="api ' + (selected === k ? "sel " : "") + (r && r.blocked ? "underattack" : r && r.sensed ? "sensed" : "") + '" data-k="' + esc(k) + '">' +
+      '<div class="route">' + esc(k) + shield + '<span class="badge ' + color + '">' + esc(label) + '</span></div>' +
+      '<div class="nums">passed ' + esc(r?.allowed || 0) + ' · blocked ' + esc(r?.blocked || 0) + ' · sensed ' + esc(r?.sensed || 0) + (r?.last ? ' · last ' + esc(r.last) : '') + '</div></div>';
+  }).join("") : "No APIs discovered yet — run: python tools/adopt.py &lt;your-repo&gt;";
+  document.querySelectorAll(".api").forEach(el => el.onclick = () => { selected = el.dataset.k; renderApis(lastState); renderDetail(lastState); });
+}
+function renderDetail(s) {
+  if (!s || !selected) return;
+  const r = (s.routes || {})[selected];
+  const inv = (s.inventory || []).find(a => (a.method + " " + a.path.replace(/<[^>]+>/g, "{id}").replace(/:[^/]+/g, "{id}")) === selected);
+  $("api-detail").innerHTML = "<b>" + esc(selected) + "</b>" +
+    (inv ? "<br>Discovered in <b>" + esc(inv.file) + "</b> [" + esc(inv.framework) + "]" : "<br>Observed live at the gateway") +
+    (r ? "<br>Requests passed: <b>" + esc(r.allowed) + "</b> · Attacks sensed: <b>" + esc(r.sensed) + "</b> · Blocked: <b>" + esc(r.blocked) + "</b>" +
+         "<br>Attack classes: " + esc(Object.entries(r.attacks || {}).map(([k, v]) => k + "×" + v).join(", ") || "none") +
+         "<br>Last activity: " + esc(r.last || "—") : "<br>No traffic yet — send a request through the gateway and watch it live.");
+}
 async function refresh() {
   try {
     const s = await (await fetch(GW + "/organism/state", { headers: authGW() })).json();
+    lastState = s;
     const phase = !s.lease_active ? "killed (lease withdrawn)" : s.pending_rules.length ? "immunity pending approval" : s.active_rules.length ? "immune" : "healthy";
-    $("phase").textContent = phase;
+    $("phase").textContent = phase; $("k-phase").textContent = phase.split(" ")[0];
     $("phase").style.color = !s.lease_active ? "var(--dim)" : s.pending_rules.length ? "var(--amber)" : s.active_rules.length ? "var(--green)" : "var(--text)";
-    $("mode").textContent = s.mode;
-    $("meta").innerHTML = "Lease: <b>" + esc(s.lease_active) + "</b> · Blocked: <b>" + esc(s.blocked) + "</b> · Allowed: <b>" + esc(s.allowed) + "</b><br>Alive cells: <b>" + esc(s.grid.alive_cells) + "/" + esc(s.grid.total) + "</b> · Saturation: " + esc(s.grid.saturation);
+    $("mode").textContent = String(s.mode ?? "");
+    $("k-req").textContent = s.allowed; $("k-blocked").textContent = s.blocked;
+    $("k-immune").textContent = s.active_rules.length; $("k-cells").textContent = s.grid.alive_cells + "/" + s.grid.total;
+    $("meta").innerHTML = "Lease: <b>" + esc(s.lease_active) + "</b> · Blocked: <b>" + esc(s.blocked) + "</b> · Allowed: <b>" + esc(s.allowed) + "</b><br>Saturation: " + esc(s.grid.saturation);
     const st = !s.lease_active ? [5, "bad"] : s.pending_rules.length ? [3, "active"] : s.active_rules.length ? [5, "done"] : [1, "done"];
     for (let i = 1; i <= 5; i++) $("step-" + i).className = "step";
     for (let i = 1; i < st[0]; i++) $("step-" + i).classList.add("done");
     $("step-" + st[0]).classList.add(st[1]);
-    const cv = $("grid"), ctx = cv.getContext("2d"), n = 480 / 16;
+    const cv = $("grid"), ctx = cv.getContext("2d"), w = cv.width / 16, h = cv.height / 16;
     s.grid.cells.forEach((row, y) => row.forEach((c, x) => {
       ctx.fillStyle = c.d > 0.45 ? "#d93a3e" : c.s > 0.55 ? "#d99a16" : ("rgba(39,122,52," + (0.45 + c.h * 0.55) + ")");
-      ctx.fillRect(x * n + 1, y * n + 1, n - 2, n - 2);
+      ctx.fillRect(x * w + 1, y * h + 1, w - 2, h - 2);
     }));
     $("alive-count").textContent = s.grid.alive_cells + " alive · births " + s.life.births + " · deaths " + s.life.deaths + " · max generation " + s.life.max_generation;
     $("rules").innerHTML = "<b>Active:</b><br>" + (s.active_rules.map(r => "✓ " + esc(r.class) + " — " + esc(r.rule)).join("<br>") || "none yet") + "<br><b>Pending approval:</b><br>" + (s.pending_rules.map(r => "? " + esc(r.class) + " — replay " + esc(JSON.stringify(r.replay))).join("<br>") || "none");
@@ -121,13 +299,16 @@ async function refresh() {
     $("life").innerHTML = "Population <b>" + esc(s.life.population) + "</b> · Brain neurons <b>" + esc(s.brain.neurons) + "</b> · instincts " + esc(s.brain.instincts) + " · peers " + s.peers.map(p => esc(p.neurons)).join(", ") + "<br>" + s.life.organisms.slice(0, 5).map(o => "#" + esc(o.id) + " gen" + esc(o.gen) + " E" + esc(o.energy) + " fit" + esc(o.fitness)).join("<br>");
     $("chem").innerHTML = Object.entries(s.chemistry.levels).map(([k, v]) => esc(k) + " " + esc(v) + '<div class="bar"><i style="width:' + Math.round(Number(v) * 100) + '%"></i></div>').join("");
     $("btn-approve").disabled = busy || !s.pending_rules.length;
+    syncNodes(s.routes, s.inventory); renderApis(s); renderDetail(s);
   } catch (e) { $("meta").textContent = "Colony offline — start: docker compose up --build"; }
 }
 async function attack(label) {
-  busy = true;
-  const r = await fetch(GW + "/api/user/1%20OR%201=1");
-  const t = await r.text();
-  $("evidence").textContent = label + "\nGET gateway/api/user/1 OR 1=1 -> HTTP " + r.status + "\n" + t.slice(0, 500);
+  busy = true; selected = "GET /api/user/{id}";
+  const r = await fetch(GW + "/api/user/1%20OR%201=1"); const t = await r.text();
+  const next = r.status === 403
+    ? "\n\nWhat happened: the colony BLOCKED it — this API is immune now. Watch its green shield ring. Next: Reset demo to play again."
+    : "\n\nWhat happened: it LEAKED through — the colony sensed it and proposed immunity. Next: press '2 Approve immunity', then 'Attack again'.";
+  $("evidence").textContent = label + "\nGET gateway/api/user/1 OR 1=1 -> HTTP " + r.status + "\n" + t.slice(0, 400) + next;
   busy = false; refresh();
 }
 $("btn-attack").onclick = () => attack("Attack (first time — expect leak or pending immunity):");
@@ -139,7 +320,7 @@ $("btn-revive").onclick = async () => { await fetch(SUP + "/revive", { method: "
 $("btn-reset").onclick = async () => { await fetch(GW + "/organism/reset", { method: "POST", headers: authGW() }); $("evidence").textContent = "Reset. Colony healthy, no immunity yet."; refresh(); };
 if (!TOKEN || !GWTOKEN) $("token-banner").style.display = "block";
 $("token-go").onclick = () => { const v = $("token-in").value.trim(); if (v) { sessionStorage.setItem("brokerToken", v); location.hash = "token=" + encodeURIComponent(v) + (GWTOKEN ? "&gwtoken=" + encodeURIComponent(GWTOKEN) : ""); location.reload(); } };
-refresh(); setInterval(refresh, 1000);
+init3D(); refresh(); setInterval(refresh, 1000);
 </script>
 </body>
 </html>
