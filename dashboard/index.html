@@ -68,8 +68,8 @@
   <div class="step" id="step-5"><div class="num">5</div><b>Immune & remembered</b><span>Shield on the API. Survives restarts.</span></div>
 </div>
 <div id="token-banner" style="display:none;margin:12px 24px 0;background:#fff3d6;border:1.5px solid #d9a441;padding:12px 15px;font-size:13.5px">
-  <b>Demo mode — one step:</b> buttons need your tokens. Use the link printed by the installer, or paste the operator (BROKER) token:
-  <input id="token-in" type="text" style="width:260px"> <button id="token-go" style="display:inline-block;width:auto;padding:6px 12px">Use token</button>
+  <b>Locked — this colony needs its keys.</b> Open the private link printed by <span style="font-family:var(--mono)">python -m organisms up</span> (it ends with <span style="font-family:var(--mono)">#token=…&gwtoken=…</span>), or paste both tokens here:<br>
+  Operator token: <input id="token-in" type="text" style="width:220px"> Gateway token: <input id="gwtoken-in" type="text" style="width:220px"> <button id="token-go" style="display:inline-block;width:auto;padding:6px 12px">Unlock dashboard</button>
 </div>
 <main>
   <section>
@@ -289,7 +289,9 @@ function renderDetail(s) {
 }
 async function refresh() {
   try {
-    const s = await (await fetch(GW + "/organism/state", { headers: authGW() })).json();
+    const res = await fetch(GW + "/organism/state", { headers: authGW() });
+    if (!res.ok) throw new Error("state " + res.status);
+    const s = await res.json();
     lastState = s;
     const phase = !s.lease_active ? "killed (lease withdrawn)" : s.pending_rules.length ? "immunity pending approval" : s.active_rules.length ? "immune" : "healthy";
     $("phase").textContent = phase; $("k-phase").textContent = phase.split(" ")[0];
@@ -317,7 +319,7 @@ async function refresh() {
     $("btn-approve").style.color = s.pending_rules.length ? "#fff" : "";
     if (!selected && s.routes) { const top = Object.entries(s.routes).sort((a, b) => ((b[1].blocked || 0) + (b[1].sensed || 0)) - ((a[1].blocked || 0) + (a[1].sensed || 0)))[0]; if (top && (top[1].blocked || top[1].sensed)) selected = top[0]; }
     syncNodes(s.routes, s.inventory); renderApis(s); renderDetail(s);
-  } catch (e) { $("meta").textContent = "Colony offline — start: docker compose up --build"; }
+  } catch (e) { $("meta").textContent = (!TOKEN || !GWTOKEN) ? "Locked — use your private dashboard link (see yellow box above)." : "Colony offline — start: python -m organisms up"; }
 }
 async function attack(label) {
   busy = true; selected = "GET /api/user/{id}";
@@ -335,8 +337,8 @@ $("btn-ask").onclick = async () => { const q = $("ask-q").value.trim(); if (!q) 
 $("btn-kill").onclick = async () => { await fetch(SUP + "/kill", { method: "POST", headers: auth() }); refresh(); };
 $("btn-revive").onclick = async () => { await fetch(SUP + "/revive", { method: "POST", headers: auth() }); await fetch(GW + "/organism/reset", { method: "POST", headers: authGW() }); refresh(); };
 $("btn-reset").onclick = async () => { await fetch(GW + "/organism/reset", { method: "POST", headers: authGW() }); $("evidence").textContent = "Reset. Colony healthy, no immunity yet."; refresh(); };
-if (!TOKEN || !GWTOKEN) $("token-banner").style.display = "block";
-$("token-go").onclick = () => { const v = $("token-in").value.trim(); if (v) { sessionStorage.setItem("brokerToken", v); location.hash = "token=" + encodeURIComponent(v) + (GWTOKEN ? "&gwtoken=" + encodeURIComponent(GWTOKEN) : ""); location.reload(); } };
+if (!TOKEN || !GWTOKEN) { $("token-banner").style.display = "block"; $("k-phase").textContent = "locked"; }
+$("token-go").onclick = () => { const v = $("token-in").value.trim(), g = $("gwtoken-in").value.trim(); if (v && g) { sessionStorage.setItem("brokerToken", v); sessionStorage.setItem("gatewayToken", g); location.hash = "token=" + encodeURIComponent(v) + "&gwtoken=" + encodeURIComponent(g); location.reload(); } };
 init3D(); refresh(); setInterval(refresh, 1000);
 </script>
 </body>
