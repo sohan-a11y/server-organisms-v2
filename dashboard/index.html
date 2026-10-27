@@ -93,7 +93,7 @@
   <section>
     <h2>Living colony — your APIs in 3D</h2>
     <canvas id="scene" width="900" height="430"></canvas>
-    <div class="meta" id="scene-note">Green core = gateway colony. Orbs = your APIs (bigger = more traffic). Green shield ring = immune. Amber = attack sensed. Red flash (momentary) = attack just blocked. Drag to orbit · scroll to zoom · click an orb.</div>
+    <div class="meta" id="scene-note">Centre ball = gateway colony (not an API). Orbs = your APIs (bigger = more traffic). Green shield ring = immune. Orange orb = attack sensed on it. Red orb + BLOCKED tag = an attack was blocked there (fades back to green). Drag to orbit · scroll to zoom · click an orb.</div>
     <h2 style="margin-top:14px">Selected API</h2>
     <div class="log" id="api-detail">Click any API orb or card → its live story appears here.</div>
   </section>
@@ -159,20 +159,20 @@ function init3D() {
     const key = new THREE.DirectionalLight(0xffffff, 0.8); key.position.set(6, 10, 7); key.castShadow = true; scene.add(key);
     const fill = new THREE.DirectionalLight(0xdfead2, 0.35); fill.position.set(-7, 4, -6); scene.add(fill);
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.15, 1),
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.88, 1),
       new THREE.MeshStandardMaterial({ color: 0x7fb069, roughness: 0.3, metalness: 0.1, emissive: 0x2c5a1e, emissiveIntensity: 0.5 }));
     core.castShadow = true; scene.add(core);
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 24),
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.18, 32, 24),
       new THREE.MeshBasicMaterial({ color: 0xbfe3ae, transparent: true, opacity: 0.16, depthWrite: false }));
     core.add(halo);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(11, 48),
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(8.5, 48),
       new THREE.MeshStandardMaterial({ color: 0xe9efe1, roughness: 1 }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -2.6; ground.receiveShadow = true; scene.add(ground);
     const pGeo = new THREE.BufferGeometry();
     pGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(150 * 3), 3));
     const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0x5b8c4e, size: 0.14, transparent: true, opacity: 0.85 }));
     scene.add(particles);
-    T = { renderer, scene, camera, core, particles, nodes: new Map(), theta: 0.6, phi: 1.02, radius: 15.5, dragging: false, lastBlocked: {} };
+    T = { renderer, scene, camera, core, particles, nodes: new Map(), theta: 0.6, phi: 1.02, radius: 11.5, dragging: false, lastBlocked: {} };
     // orbit input
     let px = 0, py = 0;
     cv.addEventListener("pointerdown", e => { T.dragging = true; px = e.clientX; py = e.clientY; cv.setPointerCapture(e.pointerId); });
@@ -242,13 +242,13 @@ function syncNodes(routes, inventory) {
       T.nodes.set(k, { mesh, line, shield: n_shield, tag, phase: Math.random() * 6.28, baseY: mesh.position.y, baseScale: 1, flash: 0, sensed: 0, aftermath: 0 });
     }
     const n = T.nodes.get(k);
-    n.baseScale = 0.75 + Math.min(1.6, Math.log10(1 + traffic) * 0.55);
+    n.baseScale = 0.95 + Math.min(1.7, Math.log10(1 + traffic) * 0.6);
     const lbl = n.mesh.children.find(c => c.isSprite && c !== n.tag);
-    if (lbl) lbl.scale.set(3.9 / n.baseScale, 0.73 / n.baseScale, 1);
+    if (lbl) lbl.scale.set(4.8 / n.baseScale, 0.9 / n.baseScale, 1);
     if (T.lastBlocked[k] !== undefined && (r.blocked || 0) > T.lastBlocked[k]) { n.flash = 1; n.aftermath = 6; }
     if ((r.sensed || 0) > (n.lastSensed || 0) && !n.flash) n.sensed = 0.7;
     T.lastBlocked[k] = r.blocked || 0; n.lastSensed = r.sensed || 0;
-    n.mesh.material.color.setHex(r.sensed && !r.blocked ? 0xe3c878 : 0x8fce7e);
+    n.mesh.material.color.setHex(r.sensed && !r.blocked ? 0xdd8a1d : 0x8fce7e);
     if (n.shield) n.shield.visible = (r.blocked || 0) > 0;  // green shield ring = immune (protected), red is only the momentary attack flash
     i++;
   }
@@ -308,7 +308,7 @@ async function refresh() {
       ctx.fillRect(x * w + 1, y * h + 1, w - 2, h - 2);
     }));
     $("alive-count").textContent = s.grid.alive_cells + " alive · births " + s.life.births + " · deaths " + s.life.deaths + " · max generation " + s.life.max_generation;
-    $("rules").innerHTML = "<b>Active:</b><br>" + (s.active_rules.map(r => "✓ " + esc(r.class) + " — " + esc(r.rule)).join("<br>") || "none yet") + "<br><b>Pending approval:</b><br>" + (s.pending_rules.map(r => "? " + esc(r.class) + " — replay " + esc(JSON.stringify(r.replay))).join("<br>") || "none");
+    $("rules").innerHTML = "<b>Active:</b><br>" + (s.active_rules.map(r => "✓ " + esc(r.class) + " — " + esc(r.rule)).join("<br>") || "none yet") + "<br><b>Pending approval:</b><br>" + (s.pending_rules.map(r => "? " + esc(r.class) + " — replay: attack variants blocked ✓ · your normal traffic passes ✓ (" + esc(r.replay?.normals_replayed ?? "?") + " routes replayed)").join("<br>") || "none");
     if (s.pending_rules.length) lastClass = s.pending_rules[s.pending_rules.length - 1].class;
     $("life").innerHTML = "Population <b>" + esc(s.life.population) + "</b> · Brain neurons <b>" + esc(s.brain.neurons) + "</b> · instincts " + esc(s.brain.instincts) + " · peers " + s.peers.map(p => esc(p.neurons)).join(", ") + "<br>" + s.life.organisms.slice(0, 5).map(o => "#" + esc(o.id) + " gen" + esc(o.gen) + " E" + esc(o.energy) + " fit" + esc(o.fitness)).join("<br>");
     $("chem").innerHTML = Object.entries(s.chemistry.levels).map(([k, v]) => esc(k) + " " + esc(v) + '<div class="bar"><i style="width:' + Math.round(Number(v) * 100) + '%"></i></div>').join("");
