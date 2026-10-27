@@ -12,6 +12,10 @@ Discovered **5 API routes** in `server-organisms\demo-api` (see apis.json).
 5. Open the dashboard: every discovered API appears as a living node in 3D,
    with live requests / blocks / attacks / immunity per route.
 
+
+## Replay safety (read once)
+The promotion gate replays normal traffic with REAL GETs. Only purely read-only routes were auto-listed in replay.env.
+Excluded candidates (review, then add manually only if truly side-effect-free): none
 The colony senses exploits on each route, proposes immunity, proves it by
 replaying YOUR normal routes, and only then blocks. Supervisor kill switch
 stays outside the organisms. See ../TRUST.md before production use.

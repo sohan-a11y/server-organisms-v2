@@ -35,9 +35,9 @@
   pre { font-family:var(--mono); font-size:11.5px; white-space:pre-wrap; background:#f0f3ec; border:1px solid var(--line); padding:10px; max-height:190px; overflow:auto; }
   input[type=text] { width:100%; background:#fff; color:var(--text); border:1px solid var(--line); padding:9px; font-family:var(--mono); font-size:12px; }
   .bar { height:8px; background:#e8ede2; margin:3px 0 8px; } .bar i { display:block; height:100%; background:var(--blue); }
-  .api { border:1px solid var(--line); border-left:4px solid var(--green); padding:8px 10px; margin:7px 0; cursor:pointer; background:#fbfcfa; }
+  .api { border:1px solid var(--line); border-left:4px solid #c4cdb9; padding:8px 10px; margin:7px 0; cursor:pointer; background:#fbfcfa; }
   .api:hover { background:#f2f6ee; } .api.sel { border-color:var(--blue); border-left-color:var(--blue); background:#eef4fb; }
-  .api.underattack { border-left-color:var(--green); } .api.sensed { border-left-color:var(--amber); } .api.flash { border-left-color:var(--red); background:#fdecec; }
+  .api.immune { border-left-color:var(--green); background:#f4faf1; } .api.sensed { border-left-color:var(--amber); } .api.flash { border-left-color:var(--red); background:#fdecec; }
   .api .route { font-family:var(--mono); font-size:12px; color:var(--text); word-break:break-all; }
   .api .nums { font-family:var(--mono); font-size:10.5px; color:var(--dim); }
   .badge { display:inline-block; font-family:var(--mono); font-size:9.5px; padding:1px 6px; border-radius:8px; background:#e8ede2; color:var(--dim); margin-left:5px; }
@@ -138,11 +138,11 @@ function tagSprite() {
   sp.scale.set(2.2, 0.6, 1); sp.visible = false; return sp;
 }
 function spriteLabel(text) {
-  const short = text.replace(/^(GET|POST|PUT|PATCH|DELETE) /, "").split("/").filter(Boolean).slice(-2).join("/");
+  const short = text.replace(/^(GET|POST|PUT|PATCH|DELETE) /, "");
   const c = document.createElement("canvas"); c.width = 640; c.height = 120;
   const x = c.getContext("2d"); x.font = "700 44px Consolas, monospace"; x.textAlign = "center";
-  x.lineWidth = 10; x.strokeStyle = "rgba(247,249,244,0.95)"; x.strokeText("/" + short, 320, 74);
-  x.fillStyle = "#22331c"; x.fillText("/" + short, 320, 74);
+  x.lineWidth = 10; x.strokeStyle = "rgba(247,249,244,0.95)"; x.strokeText(short.slice(0, 30), 320, 74);
+  x.fillStyle = "#22331c"; x.fillText(short.slice(0, 30), 320, 74);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
   sp.scale.set(3.9, 0.73, 1); return sp;
 }
@@ -194,7 +194,8 @@ function init3D() {
       core.rotation.y = t * 0.00012; core.rotation.x = Math.sin(t * 0.0002) * 0.15;
       for (const n of T.nodes.values()) {
         n.mesh.position.y = n.baseY + Math.sin(t * 0.001 + n.phase) * 0.12;
-        if (n.aftermath > 0) { n.mesh.material.emissive.setHex(0xc62f34); n.mesh.material.emissiveIntensity = 0.35 + 0.3 * Math.sin(t * 0.01); n.aftermath -= 0.002; if (n.tag) n.tag.visible = true; }
+        if (n.aftermath > 0) { n.mesh.material.color.setHex(0xcf5a4a); n.mesh.material.emissive.setHex(0xc62f34); n.mesh.material.emissiveIntensity = 0.35 + 0.3 * Math.sin(t * 0.01); n.aftermath -= 0.002; if (n.tag) n.tag.visible = true; }
+        else if (n.mesh.material.color.getHex() === 0xcf5a4a) n.mesh.material.color.setHex(0x8fce7e);
         else if (n.tag) n.tag.visible = false;
         if (n.flash > 0) { n.mesh.material.emissive.setHex(0xc62f34); n.mesh.material.emissiveIntensity = n.flash; n.flash = Math.max(0, n.flash - 0.02); }
         else if (n.sensed > 0) { n.mesh.material.emissive.setHex(0xb97d0a); n.mesh.material.emissiveIntensity = n.sensed; n.sensed = Math.max(0, n.sensed - 0.01); }
@@ -270,7 +271,7 @@ function renderApis(s) {
   $("apis").innerHTML = all.length ? all.map(k => {
     const r = routes[k], [label, color] = routeStatus(r, activeClasses);
     const shield = r && r.blocked ? '<span class="badge green">IMMUNE</span>' : "";
-    return '<div class="api ' + (selected === k ? "sel " : "") + (r && r.blocked ? "underattack" : r && r.sensed ? "sensed" : "") + '" data-k="' + esc(k) + '">' +
+    return '<div class="api ' + (selected === k ? "sel " : "") + (r && r.blocked ? "immune" : r && r.sensed ? "sensed" : "") + '" data-k="' + esc(k) + '">' +
       '<div class="route">' + esc(k) + shield + '<span class="badge ' + color + '">' + esc(label) + '</span></div>' +
       '<div class="nums">passed ' + esc(r?.allowed || 0) + ' · blocked ' + esc(r?.blocked || 0) + ' · sensed ' + esc(r?.sensed || 0) + (r?.last ? ' · last ' + esc(r.last) : '') + '</div></div>';
   }).join("") : "No APIs discovered yet — run: python tools/adopt.py &lt;your-repo&gt;";
@@ -314,6 +315,7 @@ async function refresh() {
     $("btn-approve").disabled = busy || !s.pending_rules.length;
     $("btn-approve").style.background = s.pending_rules.length ? "#2e7d3a" : "";
     $("btn-approve").style.color = s.pending_rules.length ? "#fff" : "";
+    if (!selected && s.routes) { const top = Object.entries(s.routes).sort((a, b) => ((b[1].blocked || 0) + (b[1].sensed || 0)) - ((a[1].blocked || 0) + (a[1].sensed || 0)))[0]; if (top && (top[1].blocked || top[1].sensed)) selected = top[0]; }
     syncNodes(s.routes, s.inventory); renderApis(s); renderDetail(s);
   } catch (e) { $("meta").textContent = "Colony offline — start: docker compose up --build"; }
 }

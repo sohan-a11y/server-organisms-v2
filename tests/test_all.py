@@ -220,6 +220,7 @@ def test_gateway_route_stats_key():
 
 def test_adopt_scanner_unsafe_gets(tmp_path):
     import importlib.util
+    import re as _re
 
     spec = importlib.util.spec_from_file_location(
         "adopt", os.path.join(os.path.dirname(__file__), "..", "tools", "adopt.py"))
@@ -228,16 +229,22 @@ def test_adopt_scanner_unsafe_gets(tmp_path):
     (tmp_path / "app.py").write_text(
         "from flask import Flask\napp = Flask(__name__)\n"
         "@app.get('/api/sign-out')\ndef a(): pass\n"
-        "@app.get('/api/execute')\ndef b(): pass\n"
-        "@app.get('/api/items')\ndef c(): pass\n", encoding="utf-8")
+        "@app.get('/api/deleteUser')\ndef b(): pass\n"
+        "@app.get('/api/checkout')\ndef c(): pass\n"
+        "@app.get('/api/items')\ndef d(): pass\n"
+        "@app.get('/api/users')\ndef e(): pass\n", encoding="utf-8")
     apis = mod.scan(str(tmp_path))
-    src = {"source": str(tmp_path), "apis": apis}
-    unsafe = {"delete", "remove", "reset", "drop", "logout", "signout", "sign", "pay", "charge",
-              "transfer", "send", "cancel", "destroy", "purge", "webhook", "callback", "execute",
-              "run", "trigger", "activate", "flush", "update", "create", "edit", "approve",
-              "kill", "stop", "start", "sync", "import", "process", "action", "do", "set",
-              "clear", "empty", "wipe"}
-    import re as _re
-    normals = [a["path"] for a in apis if a["method"] == "GET"
-               and not (set(_re.split(r"[^a-z]+", a["path"].lower())) & unsafe)]
-    assert normals == ["/api/items"], (apis, src)
+    SAFE = {"api", "v1", "v2", "v3", "health", "healthz", "ready", "status", "ping", "version",
+            "info", "users", "user", "items", "item", "products", "product", "posts", "post",
+            "comments", "comment", "profile", "profiles", "list", "search", "query", "find",
+            "all", "data", "orders", "order", "articles", "article", "news", "feed", "catalog",
+            "categories", "category", "tags", "tag", "pages", "page", "home", "index",
+            "public", "open", "view", "read", "get", "fetch", "detail", "details", "summary",
+            "stats", "metrics"}
+
+    def toks(path):
+        camel = _re.sub(r"(?<=[a-z])(?=[A-Z])", "/", path)
+        return {x for x in _re.split(r"[^a-z]+", camel.lower()) if x}
+
+    normals = [a["path"] for a in apis if a["method"] == "GET" and toks(a["path"]) and toks(a["path"]) <= SAFE]
+    assert normals == ["/api/items", "/api/users"], normals

@@ -76,21 +76,32 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     with open(os.path.join(args.out, "apis.json"), "w", encoding="utf-8") as f:
         json.dump({"source": os.path.abspath(args.repo), "apis": apis}, f, indent=1)
-    unsafe_tokens = {"delete", "remove", "reset", "drop", "logout", "signout", "sign", "pay",
-                     "charge", "transfer", "send", "cancel", "destroy", "purge", "webhook",
-                     "callback", "execute", "run", "trigger", "activate", "flush", "update",
-                     "create", "edit", "approve", "kill", "stop", "start", "sync", "import",
-                     "process", "action", "do", "set", "clear", "empty", "wipe"}
+    # FAIL-CLOSED replay selection: replay issues REAL GETs upstream, so a
+    # route is auto-listed ONLY when every token in its path is known
+    # read-only vocabulary. Anything else (any verb, any unknown word) is
+    # excluded and listed in README-ADOPT.md for manual operator review.
+    SAFE_TOKENS = {"api", "v1", "v2", "v3", "health", "healthz", "ready", "status", "ping",
+                   "version", "info", "users", "user", "items", "item", "products", "product",
+                   "posts", "post", "comments", "comment", "profile", "profiles", "list",
+                   "search", "query", "find", "all", "data", "orders", "order", "articles",
+                   "article", "news", "feed", "catalog", "categories", "category", "tags",
+                   "tag", "pages", "page", "home", "index", "public", "open", "view", "read",
+                   "get", "fetch", "detail", "details", "summary", "stats", "metrics"}
+
+    def _tokens(path):
+        camel = re.sub(r"(?<=[a-z])(?=[A-Z])", "/", path)
+        return {tok for tok in re.split(r"[^a-z]+", camel.lower()) if tok}
 
     def _safe_get(path):
-        tokens = set(re.split(r"[^a-z]+", path.lower()))
-        return not (tokens & unsafe_tokens)
+        toks = _tokens(path)
+        return bool(toks) and toks <= SAFE_TOKENS
 
     normals = [a["path"] for a in apis
                if a["method"] == "GET" and "<" not in a["path"] and ":" not in a["path"] and "{" not in a["path"]
                and _safe_get(a["path"])]
-    # Replay issues REAL GETs upstream: only side-effect-free-looking routes are
-    # auto-listed. Review adoption/replay.env before use (see README-ADOPT.md).
+    excluded = [a["path"] for a in apis
+                if a["method"] == "GET" and "<" not in a["path"] and ":" not in a["path"] and "{" not in a["path"]
+                and not _safe_get(a["path"])]
     with open(os.path.join(args.out, "replay.env"), "w", encoding="utf-8") as f:
         f.write(f"UPSTREAM_URL={args.upstream}\n")
         f.write("REPLAY_NORMALS=" + ",".join(normals[:12]) + "\n")
@@ -110,7 +121,12 @@ Discovered **{len(apis)} API routes** in `{args.repo}` (see apis.json).
 5. Open the dashboard: every discovered API appears as a living node in 3D,
    with live requests / blocks / attacks / immunity per route.
 
-The colony senses exploits on each route, proposes immunity, proves it by
+""")
+        f.write("\n## Replay safety (read once)\nThe promotion gate replays normal traffic with REAL GETs. "
+                "Only purely read-only routes were auto-listed in replay.env.\nExcluded candidates "
+                "(review, then add manually only if truly side-effect-free): "
+                + (", ".join(excluded[:30]) or "none") + "\n")
+        f.write("""The colony senses exploits on each route, proposes immunity, proves it by
 replaying YOUR normal routes, and only then blocks. Supervisor kill switch
 stays outside the organisms. See ../TRUST.md before production use.
 """)
