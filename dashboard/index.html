@@ -37,7 +37,7 @@
   .bar { height:8px; background:#e8ede2; margin:3px 0 8px; } .bar i { display:block; height:100%; background:var(--blue); }
   .api { border:1px solid var(--line); border-left:4px solid var(--green); padding:8px 10px; margin:7px 0; cursor:pointer; background:#fbfcfa; }
   .api:hover { background:#f2f6ee; } .api.sel { border-color:var(--blue); border-left-color:var(--blue); background:#eef4fb; }
-  .api.underattack { border-left-color:var(--red); } .api.sensed { border-left-color:var(--amber); }
+  .api.underattack { border-left-color:var(--green); } .api.sensed { border-left-color:var(--amber); } .api.flash { border-left-color:var(--red); background:#fdecec; }
   .api .route { font-family:var(--mono); font-size:12px; color:var(--text); word-break:break-all; }
   .api .nums { font-family:var(--mono); font-size:10.5px; color:var(--dim); }
   .badge { display:inline-block; font-family:var(--mono); font-size:9.5px; padding:1px 6px; border-radius:8px; background:#e8ede2; color:var(--dim); margin-left:5px; }
@@ -50,7 +50,7 @@
 <header><h1>Server Organisms</h1><p>EVERY API, ALIVE &middot; 3D COLONY VIEW &middot; DRAG TO ORBIT &middot; CLICK AN API NODE</p></header>
 <div style="margin:12px 24px 0;background:#eaf3e4;border:1.5px solid #a9c9ad;padding:12px 16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
   <div><b>Bring your own app — make its APIs living:</b> <span style="font-family:var(--mono);font-size:12.5px">python tools/adopt.py &lt;path-to-your-repo&gt;</span> <span style="color:var(--dim);font-size:12.5px">(Flask / FastAPI / Express — no code changes in your app)</span></div>
-  <div style="font-family:var(--mono);font-size:11px;color:var(--dim)">NOW SHOWING: BUNDLED DEMO APIs — ADOPT YOURS TO REPLACE THEM</div>
+  <div style="font-family:var(--mono);font-size:11px;color:var(--dim)">NOW SHOWING: BUNDLED DEMO APIs — ADOPT YOURS, REFRESH, THIS COLONY BECOMES YOUR ROUTES</div>
 </div>
 <div class="kpis">
   <div class="kpi"><b id="k-apis">—</b><span>APIs alive</span></div>
@@ -79,15 +79,16 @@
     <button id="btn-attack">1 &nbsp; Attack an API (SQL injection)</button>
     <button id="btn-approve" class="heal">2 &nbsp; Approve immunity (promote rule)</button>
     <button id="btn-ask2">Attack again — should now be BLOCKED</button>
-    <button id="btn-kill" class="danger">Kill switch (supervisor withdraws lease)</button>
-    <button id="btn-revive">Revive colony</button>
     <button id="btn-reset">Reset demo</button>
+    <button id="btn-revive">Revive colony</button>
+    <button id="btn-kill" class="danger">Kill switch (supervisor withdraws lease)</button>
     <div class="meta">Mode: <b id="mode">—</b> · adopt your own app: <b>python tools/adopt.py &lt;your-repo&gt;</b></div>
     <h2 style="margin-top:16px">Evidence</h2>
     <pre id="evidence">Press “Attack an API”.</pre>
     <h2 style="margin-top:16px">Tissue — leaky NCA</h2>
     <canvas id="grid" class="grid2d" width="640" height="266"></canvas>
     <div class="meta" id="alive-count"></div>
+    <div class="meta">Each cell lives or dies by local rules · green = healthy · amber = stressed · red = wounded by an attack</div>
   </section>
   <section>
     <h2>Living colony — your APIs in 3D</h2>
@@ -129,6 +130,13 @@ let busy = false, lastClass = "sql-injection", selected = null, lastState = null
 /* ============ 3D colony (Three.js, vendored r128) ============ */
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let T = null; // {renderer, scene, camera, core, nodes:Map, particles, theta, phi, radius, target}
+function tagSprite() {
+  const c = document.createElement("canvas"); c.width = 384; c.height = 104;
+  const x = c.getContext("2d"); x.fillStyle = "#c62f34"; x.beginPath(); x.roundRect(32, 14, 320, 76, 18); x.fill();
+  x.font = "700 42px Consolas, monospace"; x.fillStyle = "#fff"; x.textAlign = "center"; x.fillText("BLOCKED", 192, 66);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+  sp.scale.set(2.2, 0.6, 1); sp.visible = false; return sp;
+}
 function spriteLabel(text) {
   const short = text.replace(/^(GET|POST|PUT|PATCH|DELETE) /, "").split("/").filter(Boolean).slice(-2).join("/");
   const c = document.createElement("canvas"); c.width = 640; c.height = 120;
@@ -186,6 +194,8 @@ function init3D() {
       core.rotation.y = t * 0.00012; core.rotation.x = Math.sin(t * 0.0002) * 0.15;
       for (const n of T.nodes.values()) {
         n.mesh.position.y = n.baseY + Math.sin(t * 0.001 + n.phase) * 0.12;
+        if (n.aftermath > 0) { n.mesh.material.emissive.setHex(0xc62f34); n.mesh.material.emissiveIntensity = 0.35 + 0.3 * Math.sin(t * 0.01); n.aftermath -= 0.002; if (n.tag) n.tag.visible = true; }
+        else if (n.tag) n.tag.visible = false;
         if (n.flash > 0) { n.mesh.material.emissive.setHex(0xc62f34); n.mesh.material.emissiveIntensity = n.flash; n.flash = Math.max(0, n.flash - 0.02); }
         else if (n.sensed > 0) { n.mesh.material.emissive.setHex(0xb97d0a); n.mesh.material.emissiveIntensity = n.sensed; n.sensed = Math.max(0, n.sensed - 0.01); }
         else { n.mesh.material.emissive.setHex(0x000000); n.mesh.material.emissiveIntensity = 0; }
@@ -223,15 +233,18 @@ function syncNodes(routes, inventory) {
       const shield = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.045, 10, 40),
         new THREE.MeshStandardMaterial({ color: 0x2e7d3a, roughness: 0.25, metalness: 0.4, emissive: 0x1d4a17, emissiveIntensity: 0.4 }));
       shield.visible = false; shield.rotation.x = Math.PI / 3; mesh.add(shield); n_shield = shield;
+      const tag = tagSprite(); tag.position.y = 1.35; mesh.add(tag);
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), mesh.position.clone()]),
         new THREE.LineBasicMaterial({ color: 0xb9c9a8, transparent: true, opacity: 0.65 }));
       T.scene.add(line); T.scene.add(mesh);
       mesh.castShadow = true;
-      T.nodes.set(k, { mesh, line, shield: n_shield, phase: Math.random() * 6.28, baseY: mesh.position.y, baseScale: 1, flash: 0, sensed: 0 });
+      T.nodes.set(k, { mesh, line, shield: n_shield, tag, phase: Math.random() * 6.28, baseY: mesh.position.y, baseScale: 1, flash: 0, sensed: 0, aftermath: 0 });
     }
     const n = T.nodes.get(k);
     n.baseScale = 0.75 + Math.min(1.6, Math.log10(1 + traffic) * 0.55);
-    if ((r.blocked || 0) > (T.lastBlocked[k] || 0)) n.flash = 1;
+    const lbl = n.mesh.children.find(c => c.isSprite && c !== n.tag);
+    if (lbl) lbl.scale.set(3.9 / n.baseScale, 0.73 / n.baseScale, 1);
+    if (T.lastBlocked[k] !== undefined && (r.blocked || 0) > T.lastBlocked[k]) { n.flash = 1; n.aftermath = 6; }
     if ((r.sensed || 0) > (n.lastSensed || 0) && !n.flash) n.sensed = 0.7;
     T.lastBlocked[k] = r.blocked || 0; n.lastSensed = r.sensed || 0;
     n.mesh.material.color.setHex(r.sensed && !r.blocked ? 0xe3c878 : 0x8fce7e);
@@ -299,6 +312,8 @@ async function refresh() {
     $("life").innerHTML = "Population <b>" + esc(s.life.population) + "</b> · Brain neurons <b>" + esc(s.brain.neurons) + "</b> · instincts " + esc(s.brain.instincts) + " · peers " + s.peers.map(p => esc(p.neurons)).join(", ") + "<br>" + s.life.organisms.slice(0, 5).map(o => "#" + esc(o.id) + " gen" + esc(o.gen) + " E" + esc(o.energy) + " fit" + esc(o.fitness)).join("<br>");
     $("chem").innerHTML = Object.entries(s.chemistry.levels).map(([k, v]) => esc(k) + " " + esc(v) + '<div class="bar"><i style="width:' + Math.round(Number(v) * 100) + '%"></i></div>').join("");
     $("btn-approve").disabled = busy || !s.pending_rules.length;
+    $("btn-approve").style.background = s.pending_rules.length ? "#2e7d3a" : "";
+    $("btn-approve").style.color = s.pending_rules.length ? "#fff" : "";
     syncNodes(s.routes, s.inventory); renderApis(s); renderDetail(s);
   } catch (e) { $("meta").textContent = "Colony offline — start: docker compose up --build"; }
 }

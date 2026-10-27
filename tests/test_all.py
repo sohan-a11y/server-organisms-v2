@@ -216,3 +216,28 @@ def test_gateway_route_stats_key():
     assert gw._route_key("POST", "/api/comment") == "POST /api/comment"
     assert gw._route_key("GET", "/api/user/1 OR 1=1") == "GET /api/user/{id}"
     assert gw._route_key("GET", "/api/user/(id)") == "GET /api/user/{id}"
+
+
+def test_adopt_scanner_unsafe_gets(tmp_path):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "adopt", os.path.join(os.path.dirname(__file__), "..", "tools", "adopt.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    (tmp_path / "app.py").write_text(
+        "from flask import Flask\napp = Flask(__name__)\n"
+        "@app.get('/api/sign-out')\ndef a(): pass\n"
+        "@app.get('/api/execute')\ndef b(): pass\n"
+        "@app.get('/api/items')\ndef c(): pass\n", encoding="utf-8")
+    apis = mod.scan(str(tmp_path))
+    src = {"source": str(tmp_path), "apis": apis}
+    unsafe = {"delete", "remove", "reset", "drop", "logout", "signout", "sign", "pay", "charge",
+              "transfer", "send", "cancel", "destroy", "purge", "webhook", "callback", "execute",
+              "run", "trigger", "activate", "flush", "update", "create", "edit", "approve",
+              "kill", "stop", "start", "sync", "import", "process", "action", "do", "set",
+              "clear", "empty", "wipe"}
+    import re as _re
+    normals = [a["path"] for a in apis if a["method"] == "GET"
+               and not (set(_re.split(r"[^a-z]+", a["path"].lower())) & unsafe)]
+    assert normals == ["/api/items"], (apis, src)

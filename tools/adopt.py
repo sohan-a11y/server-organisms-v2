@@ -76,11 +76,19 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     with open(os.path.join(args.out, "apis.json"), "w", encoding="utf-8") as f:
         json.dump({"source": os.path.abspath(args.repo), "apis": apis}, f, indent=1)
-    unsafe = ("delete", "remove", "reset", "drop", "logout", "signout", "pay", "charge",
-              "transfer", "send", "cancel", "destroy", "purge", "webhook", "callback")
+    unsafe_tokens = {"delete", "remove", "reset", "drop", "logout", "signout", "sign", "pay",
+                     "charge", "transfer", "send", "cancel", "destroy", "purge", "webhook",
+                     "callback", "execute", "run", "trigger", "activate", "flush", "update",
+                     "create", "edit", "approve", "kill", "stop", "start", "sync", "import",
+                     "process", "action", "do", "set", "clear", "empty", "wipe"}
+
+    def _safe_get(path):
+        tokens = set(re.split(r"[^a-z]+", path.lower()))
+        return not (tokens & unsafe_tokens)
+
     normals = [a["path"] for a in apis
                if a["method"] == "GET" and "<" not in a["path"] and ":" not in a["path"] and "{" not in a["path"]
-               and not any(w in a["path"].lower() for w in unsafe)]
+               and _safe_get(a["path"])]
     # Replay issues REAL GETs upstream: only side-effect-free-looking routes are
     # auto-listed. Review adoption/replay.env before use (see README-ADOPT.md).
     with open(os.path.join(args.out, "replay.env"), "w", encoding="utf-8") as f:

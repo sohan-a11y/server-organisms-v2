@@ -80,7 +80,7 @@ def _inventory():
         mtime = os.path.getmtime(path)
         if _inv_cache["mtime"] != mtime:
             with open(path) as f:
-                _inv_cache.update(mtime=mtime, apis=json.load(f).get("apis", []))
+                _inv_cache.update(mtime=mtime, apis=json.load(f).get("apis", [])[:MAX_ROUTES])
     except Exception:
         return []
     return _inv_cache["apis"]
