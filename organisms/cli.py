@@ -259,6 +259,55 @@ def cmd_revive(args):
     return 0 if r.status_code == 200 else 1
 
 
+def cmd_demo(args):
+    """Zero-setup live demo: stack up + full attack->approve->blocked story."""
+    print("Starting the live demo against the bundled demo API...")
+    rc = main(["init", os.path.join(ROOT, "demo-api"), "--upstream", "http://demo-api:18011"])
+    if rc != 0:
+        return rc
+    rc = cmd_up(args)
+    if rc != 0:
+        return rc
+    env = _env()
+    gw_tok, op_tok = env.get("GATEWAY_TOKEN", ""), env.get("BROKER_TOKEN", "")
+    print("Waiting for a healthy colony...", flush=True)
+    for _ in range(60):
+        try:
+            if _get(GW + "/health", timeout=5).status_code == 200:
+                break
+        except Exception:
+            pass
+        time.sleep(2)
+    _post(SUP + "/revive", op_tok)
+    time.sleep(3)
+    _post(GW + "/organism/reset", gw_tok)
+    print("Act 1: attacking an API (SQL injection) — watch it leak, then propose immunity.")
+    _get(GW + "/api/user/1%20OR%201=1", timeout=30)
+    pending = False
+    for _ in range(90):
+        time.sleep(1)
+        try:
+            s = _get(GW + "/organism/state", gw_tok, timeout=10).json()
+            if s.get("pending_rules"):
+                pending = True
+                break
+        except Exception:
+            pass
+    if not pending:
+        print("demo setup incomplete: no immunity proposed yet — open the dashboard and press Attack.")
+        return 1
+    print("Act 2: replay proved it (attack blocked, your traffic passes) — approving immunity.")
+    _post(GW + "/organism/approve", gw_tok, {"class": "sql-injection"}, timeout=30)
+    time.sleep(1)
+    r = _get(GW + "/api/user/1%20OR%201=1", timeout=30)
+    print(f"Act 3: same attack returns HTTP {r.status_code} — blocked at the gate.")
+    print("\nYour private dashboard (do not share):")
+    print(f"  http://127.0.0.1:18000/#token={op_tok}&gwtoken={gw_tok}")
+    print("The colony is alive: 1 API immune, tissue wounded and healing. Now adopt YOUR app:")
+    print("  python -m organisms init ../your-app --upstream http://host.docker.internal:8000")
+    return 0
+
+
 def cmd_down(args):
     return subprocess.run(["docker", "compose", "down"], cwd=ROOT).returncode
 
@@ -278,6 +327,8 @@ def build_parser():
     i.set_defaults(fn=cmd_init)
     u = sub.add_parser("up", help="start the colony in front of your app")
     u.set_defaults(fn=cmd_up)
+    dm = sub.add_parser("demo", help="zero-setup live demo: stack + full immunity story")
+    dm.set_defaults(fn=cmd_demo)
     s = sub.add_parser("status", help="watch every API: traffic, attacks, immunity")
     s.add_argument("--watch", action="store_true", help="refreshing terminal view")
     s.set_defaults(fn=cmd_status)

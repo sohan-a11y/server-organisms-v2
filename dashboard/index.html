@@ -315,6 +315,7 @@ async function refresh() {
     $("life").innerHTML = "Population <b>" + esc(s.life.population) + "</b> · Brain neurons <b>" + esc(s.brain.neurons) + "</b> · instincts " + esc(s.brain.instincts) + " · peers " + s.peers.map(p => esc(p.neurons)).join(", ") + "<br>" + s.life.organisms.slice(0, 5).map(o => "#" + esc(o.id) + " gen" + esc(o.gen) + " E" + esc(o.energy) + " fit" + esc(o.fitness)).join("<br>");
     $("chem").innerHTML = Object.entries(s.chemistry.levels).map(([k, v]) => esc(k) + " " + esc(v) + '<div class="bar"><i style="width:' + Math.round(Number(v) * 100) + '%"></i></div>').join("");
     $("btn-approve").disabled = busy || !s.pending_rules.length;
+    $("btn-ask2").style.display = s.active_rules.length ? "" : "none";
     $("btn-approve").style.background = s.pending_rules.length ? "#2e7d3a" : "";
     $("btn-approve").style.color = s.pending_rules.length ? "#fff" : "";
     if (!selected && s.routes) { const top = Object.entries(s.routes).sort((a, b) => ((b[1].blocked || 0) + (b[1].sensed || 0)) - ((a[1].blocked || 0) + (a[1].sensed || 0)))[0]; if (top && (top[1].blocked || top[1].sensed)) selected = top[0]; }

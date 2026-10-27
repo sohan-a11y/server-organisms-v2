@@ -1,68 +1,110 @@
 # Server Organisms — Living Immune Layer for Your API
 
+![CI](https://github.com/sohan-a11y/server-organisms-v2/actions/workflows/ci.yml/badge.svg)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![No GPU](https://img.shields.io/badge/GPU-none%20needed-brightgreen)
+
 **Not the biggest immune system. The first one that's alive — and yours.**
 
-Organisms live between the internet and your API on *your* server. They sense exploits, wound, propose immunity, prove it on replay, promote it, teach their children, and die when you withdraw their lease. No GPU. No data leaving your host. No code changes in your app — put the gateway in front of it.
+> **You only need to:** point the colony at your app (one command).
+> **You get back:** a living immune layer that blocks exploits per API,
+> plus a living 3D world where you watch every API breathe, get attacked,
+> and turn immune.
 
-Darktrace watches enterprises like an immune system. Cloudflare shields at global scale. This is the living defence for the rest of us: indie devs and small teams whose APIs get nothing from enterprise contracts today.
+Organisms live between the internet and your API on *your* server. They sense
+exploits, wound, propose immunity, prove it by replaying YOUR normal traffic,
+promote it, teach their children, and die when you withdraw their lease.
+No GPU. No data leaving your host. No code changes in your app.
 
-## Make YOUR APIs living (the actual product)
+## See it (60 seconds, zero setup beyond Docker)
 
 ```bash
 git clone https://github.com/sohan-a11y/server-organisms-v2 && cd server-organisms-v2
+python -m organisms demo
+```
+
+One command starts the stack, attacks an API, proves immunity by replay,
+promotes it, blocks the repeat attack — and prints your private dashboard
+link. What you'll see:
+
+| Clean colony — your APIs alive | Attack sensed — immunity pending | Blocked — API immune |
+|---|---|---|
+| ![clean colony](static/shot-colony-clean.png) | ![attack sensed](static/shot-attack-pending.png) | ![blocked immune](static/shot-blocked-immune.png) |
+
+## Your app, alive in 5 minutes
+
+```bash
 python -m organisms init ../your-app --upstream http://host.docker.internal:8000
 python -m organisms up
 ```
 
 `init` scans **your** repo (Flask / FastAPI / Express), discovers every API
-route, generates all credentials, and wires the colony in front of your app —
-**zero code changes in your app**. `up` starts it and prints your private
-dashboard link. Containerized app on its own Docker network?
-`organisms init ../your-app --upstream http://web:8000 --network myapp_default`.
+route, generates all credentials, and wires the colony in front of your app.
+Containerized app? Add `--upstream http://web:8000 --network myapp_default`.
 
 **Watch it working, two ways:**
 
-- **Dashboard (3D):** every one of your APIs is a living orb — traffic size,
-  attacks sensed (orange), blocks (red orb + BLOCKED tag), immunity (green
-  shield ring). Click any orb for its live story.
+- **Dashboard (3D):** every API is a living orb — traffic size, attacks
+  sensed (orange), blocks (red orb + BLOCKED tag), immunity (green shield
+  ring). Click any orb for its live story.
 - **Terminal:** `python -m organisms status` (or `--watch`) shows the same
-  per-route table; `organisms doctor` diagnoses any setup problem;
+  per-route table; `organisms doctor` diagnoses setup problems;
   `organisms kill` / `revive` are the external kill switch.
 
-## Install (bundled demo, one command)
-
-```powershell
-.\install.ps1   # Linux/macOS: ./install.sh
-```
-
-It generates three private tokens (operator / gateway / audit-only), builds, and prints your dashboard link. Open it.
-
-## Demo (90 seconds)
-1. **Attack through gateway** — SQL injection leaks through the demo API; tissue wounds red; immunity proposed.
-2. **Approve immunity** — canary replay already proved: attack blocked, normal traffic passes. Rule promoted.
-3. **Attack again** — BLOCKED at the gate (403, colony signature).
-4. **Ask the organisms** in English — they answer from memory or learn once from Muse Spark and teach peers.
-5. **Kill switch** — the *supervisor* (separate process the colony cannot modify) withdraws the lease; enforcement halts.
-
 ## How it works
-`Internet -> Gateway Colony (:18010) -> Your API -> DB`. Supervisor (:18012) owns lease/audit/kill. Leaky NCA tissue (leak 0.3, from the NCA-Pet-0 A1 finding) expresses damage; endocrine chemistry modulates behaviour; population metabolizes, reproduces with mutated genomes, is selected by measured fitness; brain grows neurons/instincts, persists across restarts on the shared volume.
 
-Modes: `ORGANISM_MODE=suggest` (human approves promotion, default) or `auto` (PASS promotes itself).
+`Internet -> Gateway Colony (:18010) -> Your API -> DB`.
+Supervisor (:18012, separate process the colony cannot modify) owns the
+lease, audit log and kill switch. Leaky NCA tissue expresses damage;
+endocrine chemistry modulates behaviour; the population metabolizes and
+reproduces; the brain grows neurons, learns once from Muse Spark when
+unknown, persists across restarts, and teaches peers.
 
-## Protect your own API
-Set your app behind the gateway: route traffic to `http://127.0.0.1:18010/<your-path>` with `UPSTREAM_URL` pointing at your service (see `docker-compose.yml` gateway environment). Attack classes today: SQL injection, broken authorization, XSS. Replay gate is deterministic — LLM opinion never promotes a rule.
+Modes: `suggest` (human approves promotion, default) or `auto`
+(replay-PASS promotes itself). Attack classes: SQL injection, broken
+authorization, XSS. Promotion is gated by deterministic replay — LLM
+opinion never promotes a rule. See [TRUST.md](TRUST.md) and
+[docs/MIROFISH_REVIEW.md](docs/MIROFISH_REVIEW.md).
 
-## Built during the hackathon vs prior art
-Novel: living enforcement with birth/heredity/mortality, NCA tissue substrate, local verifier-gated learning, separate-process immune supervisor. Prior art cited honestly: Darktrace (immune branding/detection), Cloudflare WAF ML (centralized learning rules), Salt (API behaviour baselining), GenProg/DARPA CGC (automated repair), Mordvintsev NCA + CAX. Reused OSS licences preserved (Flask/requests MIT/BSD).
+## Demo video
+
+*Recording in progress — the 3-minute hackathon walkthrough will be linked
+here (attack → approve → blocked, then adopting a real app).*
+
+## FAQ
+
+**Do I change my app's code?** No. The colony is a reverse proxy in front
+of it. Point traffic at the gateway and set `UPSTREAM_URL` to your app.
+
+**Do I need a GPU?** No. NCA tissue, life and brain are CPU-trivial; the
+only model calls go to the hosted Meta Model API when the colony meets the
+unknown.
+
+**What if the colony is wrong?** Promotion requires a replay proof (attack
+variants blocked, your normal traffic passing). In `suggest` mode a human
+approves. The supervisor kill switch halts enforcement in seconds.
+
+**Is my data sent anywhere?** Only the teacher calls (unknown attack class
+summaries, no user data) leave the host, and only when you set `META_API_KEY`.
+
+## Prior art & novelty
+
+Novel: living enforcement with birth/heredity/mortality, NCA tissue
+substrate, local verifier-gated learning, separate-process immune
+supervisor. Prior art cited honestly: Darktrace, Cloudflare WAF ML, Salt,
+GenProg/DARPA CGC, Mordvintsev NCA + CAX. Product thinking informed by a
+`/search-first` review of MiroFish (patterns only, no code — AGPL).
 
 ## Tests
-`python -m pytest tests/ -q` (9 tests) and the live Docker loop in `test_live.py` (11 steps: leak->propose->approve->blocked for SQLi/XSS/broken-auth, encoded variants, token separation, persistence across gateway and supervisor restarts, kill switch).
+
+`python -m pytest tests/ -q` (19 tests) and the live Docker loop in
+`test_live.py` (leak→propose→approve→blocked for SQLi/XSS/broken-auth,
+encoded variants, token separation, persistence across gateway and
+supervisor restarts, kill switch).
 
 ## Safety
-Demo upstream (`demo-api/`) is intentionally vulnerable — never deploy it. The gateway fails open to upstream when the lease is withdrawn (availability over enforcement), and says so in TRUST.md.
 
-## Identity & production notes
-Broken-auth detection trusts `X-User-Id` only as set by your authenticating ingress (strip client-supplied values first). The bundled demo runs with `DEMO_IDENTITY=1` so `?as_user=` works as demo identity; never enable that in production. See TRUST.md.
-
-## Production replay configuration
-The replay gate replays *your* normal traffic before any promotion. Set `REPLAY_NORMALS` (comma-separated safe GET paths, defaulting to the demo routes) and `REPLAY_USER_ID` for your API; when `IDENTITY_HMAC_KEY` is set the gateway signs that identity on replays. Point the gateway at your app with `UPSTREAM_URL` (compose `.env` or Helm `upstreamUrl`).
+Demo upstream (`demo-api/`) is intentionally vulnerable — never deploy it.
+The gateway fails open to upstream when the lease is withdrawn (availability
+over enforcement), and says so in TRUST.md.
