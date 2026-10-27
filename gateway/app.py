@@ -71,7 +71,7 @@ def _route_stat(method, path, kind, cls=None):
         r["last"] = time.strftime("%H:%M:%S")
 
 
-_inv_cache = {"mtime": None, "apis": []}
+_inv_cache = {"mtime": None, "apis": [], "app": "your app"}
 
 
 def _inventory():
@@ -80,7 +80,9 @@ def _inventory():
         mtime = os.path.getmtime(path)
         if _inv_cache["mtime"] != mtime:
             with open(path) as f:
-                _inv_cache.update(mtime=mtime, apis=json.load(f).get("apis", [])[:MAX_ROUTES])
+                _doc = json.load(f)
+                _inv_cache.update(mtime=mtime, apis=_doc.get("apis", [])[:MAX_ROUTES],
+                                  app=_doc.get("app", "your app"))
     except Exception:
         return []
     return _inv_cache["apis"]
@@ -400,7 +402,8 @@ def organism_state():
                        active_rules=state["active_rules"], pending_rules=state["pending_rules"],
                        last_verdict=state["last_verdict"], grid=grid.snapshot(), life=pop.snapshot(),
                        brain=brain.snapshot(), peers=[p.snapshot() for p in peers], chemistry=chem.snapshot(),
-                       routes=state["routes"], inventory=_inventory())
+                       routes=state["routes"], inventory=_inventory(),
+                       app=_inv_cache.get("app", "your app"))
 
 
 @app.post("/organism/approve")

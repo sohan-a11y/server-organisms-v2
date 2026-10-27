@@ -9,15 +9,25 @@ Darktrace watches enterprises like an immune system. Cloudflare shields at globa
 ## Make YOUR APIs living (the actual product)
 
 ```bash
-python tools/adopt.py <path-to-your-repo>   # Flask / FastAPI / Express
+git clone https://github.com/sohan-a11y/server-organisms-v2 && cd server-organisms-v2
+python -m organisms init ../your-app --upstream http://host.docker.internal:8000
+python -m organisms up
 ```
 
-The scanner discovers every API route in your code (no changes to your app),
-writes `adoption/` (route inventory, replay config, steps), and the gateway
-colony then sits in front of your app. Open the dashboard: **every one of
-your APIs is a living node in 3D** — traffic, attacks sensed, blocks and
-immunity per route, live. Set `UPSTREAM_URL` to your app and route traffic
-through the gateway.
+`init` scans **your** repo (Flask / FastAPI / Express), discovers every API
+route, generates all credentials, and wires the colony in front of your app —
+**zero code changes in your app**. `up` starts it and prints your private
+dashboard link. Containerized app on its own Docker network?
+`organisms init ../your-app --upstream http://web:8000 --network myapp_default`.
+
+**Watch it working, two ways:**
+
+- **Dashboard (3D):** every one of your APIs is a living orb — traffic size,
+  attacks sensed (orange), blocks (red orb + BLOCKED tag), immunity (green
+  shield ring). Click any orb for its live story.
+- **Terminal:** `python -m organisms status` (or `--watch`) shows the same
+  per-route table; `organisms doctor` diagnoses any setup problem;
+  `organisms kill` / `revive` are the external kill switch.
 
 ## Install (bundled demo, one command)
 

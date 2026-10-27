@@ -248,3 +248,42 @@ def test_adopt_scanner_unsafe_gets(tmp_path):
 
     normals = [a["path"] for a in apis if a["method"] == "GET" and toks(a["path"]) and toks(a["path"]) <= SAFE]
     assert normals == ["/api/items", "/api/users"], normals
+
+
+def test_organisms_cli_init(tmp_path, monkeypatch):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "orgcli", os.path.join(os.path.dirname(__file__), "..", "organisms", "cli.py"))
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    monkeypatch.setattr(cli, "ROOT", str(tmp_path))
+    repo = tmp_path / "myapp"
+    repo.mkdir()
+    (repo / "app.py").write_text(
+        "from flask import Flask\napp = Flask(__name__)\n"
+        "@app.get('/api/orders')\ndef o(): pass\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("ORGANISM_MODE=suggest\n", encoding="utf-8")
+    rc = cli.main(["init", str(repo), "--upstream", "http://localhost:9000"])
+    assert rc == 0
+    import json as _json
+
+    doc = _json.loads((tmp_path / "adoption" / "apis.json").read_text(encoding="utf-8"))
+    assert doc["app"] == "myapp" and doc["apis"][0]["path"] == "/api/orders"
+    env = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "UPSTREAM_URL=http://localhost:9000" in env and "GATEWAY_TOKEN=" in env
+
+
+def test_organisms_cli_status_render():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "orgcli2", os.path.join(os.path.dirname(__file__), "..", "organisms", "cli.py"))
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    out = cli.render_status({"lease_active": True, "allowed": 5, "blocked": 2,
+                             "active_rules": [{"class": "sql-injection"}], "pending_rules": [],
+                             "routes": {"GET /api/user/{id}": {"allowed": 5, "blocked": 2, "sensed": 1,
+                                                                "attacks": {"sql-injection": 3}, "last": "12:00:01"}},
+                             "inventory": [{"method": "GET", "path": "/api/user/<user_id>"}]})
+    assert "IMMUNE" in out and "GET /api/user/{id}" in out and "blocked=2" in out

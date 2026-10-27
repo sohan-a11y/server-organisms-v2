@@ -8,3 +8,4 @@ __pycache__/
 shared-state/
 demo-output/
 node_modules/
+docker-compose.override.yml

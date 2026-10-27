@@ -1,5 +1,6 @@
 {
  "source": "C:\\Users\\kalya\\Downloads\\no plagarism\\New folder (6)\\server-organisms\\demo-api",
+ "app": "demo-api",
  "apis": [
   {
    "method": "GET",
