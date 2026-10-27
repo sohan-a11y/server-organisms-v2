@@ -1,0 +1,88 @@
+services:
+  init-perms:  # one-shot: named volumes start root-owned; app containers run non-root
+    image: python:3.12-slim
+    command: sh -c "mkdir -p /shared /sup && chown 1000:1000 /shared /sup"
+    volumes:
+      - shared-state:/shared
+      - supervisor-state:/sup
+
+  demo-api:
+    build: ./demo-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18011/health')"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  supervisor:
+    build: ./supervisor
+    ports:
+      - "127.0.0.1:18012:18012"
+    volumes:
+      - supervisor-state:/shared
+    environment:
+      - OPERATOR_TOKEN=${BROKER_TOKEN:?Set BROKER_TOKEN in .env - see .env.example}
+      - AUDIT_TOKEN=${AUDIT_TOKEN:?Set AUDIT_TOKEN in .env - see .env.example}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://127.0.0.1:18000}
+      - UPDATE_SIGNING_KEY=${UPDATE_SIGNING_KEY:-}
+      - STATE_FILE=/shared/supervisor_state.json
+    restart: unless-stopped
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18012/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "127.0.0.1:18010:18010"
+    volumes:
+      - shared-state:/shared
+    environment:
+      - UPSTREAM_URL=${UPSTREAM_URL:-http://demo-api:18011}
+      - REPLAY_NORMALS=${REPLAY_NORMALS:-}
+      - REPLAY_USER_ID=${REPLAY_USER_ID:-1}
+      - SUPERVISOR_URL=http://supervisor:18012
+      - GATEWAY_TOKEN=${GATEWAY_TOKEN:?Set GATEWAY_TOKEN in .env - see .env.example}
+      - AUDIT_TOKEN=${AUDIT_TOKEN:?Set AUDIT_TOKEN in .env - see .env.example}
+      - DEMO_IDENTITY=${DEMO_IDENTITY:-0}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://127.0.0.1:18000}
+      - META_API_KEY=${META_API_KEY:-}
+      - IDENTITY_HMAC_KEY=${IDENTITY_HMAC_KEY:?Set IDENTITY_HMAC_KEY in .env - see .env.example}
+      - META_MODEL=${META_MODEL:-muse-spark-1.1}
+      - META_API_BASE=${META_API_BASE:-https://api.meta.ai/v1}
+      - ORGANISM_MODE=${ORGANISM_MODE:-suggest}
+      - STATE_FILE=/shared/colony_state.json
+    restart: unless-stopped
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
+      demo-api:
+        condition: service_healthy
+      supervisor:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18010/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  dashboard:
+    image: python:3.12-slim
+    restart: unless-stopped
+    user: "1000:1000"
+    working_dir: /app
+    volumes:
+      - ./dashboard:/app:ro
+    ports:
+      - "127.0.0.1:18000:18000"
+    command: python -m http.server 18000
+
+volumes:
+  shared-state:
+  supervisor-state:

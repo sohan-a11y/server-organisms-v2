@@ -1,0 +1,22 @@
+demoApi:
+  enabled: false  # intentionally vulnerable demo upstream; enable only for the bundled demo
+upstreamUrl: ""  # REQUIRED unless demoApi.enabled=true: your real API, e.g. http://my-api:8080
+ingress:
+  enabled: false  # authenticated operator ingress for gateway+supervisor
+  host: ""
+  tlsSecret: ""  # TLS secret for the operator ingress (required for real use)
+image:
+  gateway: server-organisms-gateway:latest
+  supervisor: server-organisms-supervisor:latest
+  demoApi: server-organisms-demo-api:latest
+  dashboard: python:3.12-slim
+brokerToken: ""
+gatewayToken: ""  # dashboard->gateway token; must differ from brokerToken/auditToken
+auditToken: ""  # gateway->supervisor audit-only token; must differ from brokerToken
+metaApiKey: ""
+metaModel: muse-spark-1.1
+mode: suggest
+identityHmacKey: ""  # optional: enables signed X-User-Id identity at the gateway
+updateSigningKey: ""  # optional; /verify-update fails closed (503) without it
+replayNormals: ""  # comma-separated safe GET paths replayed before promotion (demo defaults if empty)
+replayUserId: "1"

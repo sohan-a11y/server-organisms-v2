@@ -1,0 +1,17 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pytest ruff
+      - run: pip install -r gateway/requirements.txt -r supervisor/requirements.txt -r demo-api/requirements.txt
+      - run: python -m pytest tests/ -q
+      - run: ruff check gateway supervisor demo-api tests
+      - run: docker build -t organisms-gateway ./gateway && docker build -t organisms-supervisor ./supervisor && docker build -t organisms-demo ./demo-api
+      - uses: azure/setup-helm@v4
+      - run: helm lint helm/organisms --set brokerToken=ci-operator-token-0123456789abcdef --set gatewayToken=ci-gateway-token-0123456789abcdef --set auditToken=ci-audit-token-0123456789abcdef0 --set identityHmacKey=ci-identity-key-0123456789abcdef --set upstreamUrl=http://demo-api:18011
+      - run: helm template helm/organisms --set brokerToken=ci-operator-token-0123456789abcdef --set gatewayToken=ci-gateway-token-0123456789abcdef --set auditToken=ci-audit-token-0123456789abcdef0 --set identityHmacKey=ci-identity-key-0123456789abcdef --set upstreamUrl=http://demo-api:18011 > /dev/null

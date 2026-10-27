@@ -1,0 +1,6 @@
+apiVersion: v2
+name: server-organisms
+description: Living immune layer for APIs - gateway colony + separate supervisor
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

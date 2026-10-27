@@ -1,0 +1,180 @@
+{{- if and (not .Values.demoApi.enabled) (not .Values.upstreamUrl) }}{{ fail "set upstreamUrl to your API, or enable the bundled demo with demoApi.enabled=true" }}{{- end }}
+{{- if not .Values.gatewayToken }}{{ fail "gatewayToken required: --set gatewayToken=$(openssl rand -hex 24)" }}{{- end }}
+{{- if not .Values.brokerToken }}{{ fail "brokerToken required: --set brokerToken=$(openssl rand -hex 24)" }}{{- end }}
+{{- if not .Values.auditToken }}{{ fail "auditToken required: --set auditToken=$(openssl rand -hex 24) (must differ from brokerToken)" }}{{- end }}
+{{- if or (lt (len .Values.brokerToken) 32) (lt (len .Values.auditToken) 32) (lt (len .Values.gatewayToken) 32) }}{{ fail "brokerToken, gatewayToken and auditToken must each be >= 32 chars" }}{{- end }}
+{{- if or (eq .Values.gatewayToken .Values.brokerToken) (eq .Values.gatewayToken .Values.auditToken) }}{{ fail "gatewayToken must differ from brokerToken and auditToken" }}{{- end }}
+{{- if or (not .Values.identityHmacKey) (lt (len .Values.identityHmacKey) 32) }}{{ fail "identityHmacKey required (>=32 chars): gateway fails closed on unsigned identity" }}{{- end }}
+{{- if eq .Values.brokerToken .Values.auditToken }}{{ fail "brokerToken and auditToken must differ (operator vs audit-only separation)" }}{{- end }}
+apiVersion: v1
+kind: Secret
+metadata: {name: organisms-secret}
+type: Opaque
+stringData:
+  BROKER_TOKEN: {{ .Values.brokerToken | quote }}
+  GATEWAY_TOKEN: {{ .Values.gatewayToken | quote }}
+  IDENTITY_HMAC_KEY: {{ .Values.identityHmacKey | quote }}
+  UPDATE_SIGNING_KEY: {{ .Values.updateSigningKey | quote }}
+  AUDIT_TOKEN: {{ .Values.auditToken | quote }}
+  META_API_KEY: {{ .Values.metaApiKey | quote }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: organisms-shared}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: organisms-supervisor}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: {requests: {storage: 256Mi}}
+{{- if .Values.demoApi.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: demo-api}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: demo-api}}
+  template:
+    metadata: {labels: {app: demo-api}}
+    spec:
+      containers:
+        - name: demo-api
+          image: {{ .Values.image.demoApi }}
+          ports: [{containerPort: 18011}]
+          securityContext: {runAsNonRoot: true, runAsUser: 1000, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: demo-api}
+spec:
+  selector: {app: demo-api}
+  ports: [{port: 18011, targetPort: 18011}]
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: supervisor}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: supervisor}}
+  template:
+    metadata: {labels: {app: supervisor}}
+    spec:
+      securityContext: {fsGroup: 1000}
+      containers:
+        - name: supervisor
+          image: {{ .Values.image.supervisor }}
+          ports: [{containerPort: 18012}]
+          securityContext: {runAsNonRoot: true, runAsUser: 1000, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
+          readinessProbe: {httpGet: {path: /health, port: 18012}, initialDelaySeconds: 3, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: 18012}, initialDelaySeconds: 10, periodSeconds: 10}
+          env:
+            - {name: STATE_FILE, value: /shared/supervisor_state.json}
+            - name: OPERATOR_TOKEN
+              valueFrom: {secretKeyRef: {name: organisms-secret, key: BROKER_TOKEN}}
+            - name: AUDIT_TOKEN
+              valueFrom: {secretKeyRef: {name: organisms-secret, key: AUDIT_TOKEN}}
+            - name: UPDATE_SIGNING_KEY
+              valueFrom: {secretKeyRef: {name: organisms-secret, key: UPDATE_SIGNING_KEY}}
+          volumeMounts: [{name: sup, mountPath: /shared}]
+      volumes: [{name: sup, persistentVolumeClaim: {claimName: organisms-supervisor}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: supervisor}
+spec:
+  selector: {app: supervisor}
+  ports: [{port: 18012, targetPort: 18012}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: gateway}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: gateway}}
+  template:
+    metadata: {labels: {app: gateway}}
+    spec:
+      securityContext: {fsGroup: 1000}
+      containers:
+        - name: gateway
+          image: {{ .Values.image.gateway }}
+          ports: [{containerPort: 18010}]
+          securityContext: {runAsNonRoot: true, runAsUser: 1000, allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 512Mi}}
+          readinessProbe: {httpGet: {path: /health, port: 18010}, initialDelaySeconds: 3, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: 18010}, initialDelaySeconds: 10, periodSeconds: 10}
+          env:
+            - {name: UPSTREAM_URL, value: {{ .Values.upstreamUrl | default "http://demo-api:18011" | quote }}}
+            - {name: SUPERVISOR_URL, value: http://supervisor:18012}
+            - {name: ORGANISM_MODE, value: {{ .Values.mode | quote }}}
+            - {name: META_MODEL, value: {{ .Values.metaModel | quote }}}
+            - {name: STATE_FILE, value: /shared/colony_state.json}
+            - name: GATEWAY_TOKEN
+              valueFrom: {secretKeyRef: {name: organisms-secret, key: GATEWAY_TOKEN}}
+            - name: AUDIT_TOKEN
+              valueFrom: {secretKeyRef: {name: organisms-secret, key: AUDIT_TOKEN}}
+            - name: IDENTITY_HMAC_KEY
+              valueFrom: {secretKeyRef: {name: organisms-secret, key: IDENTITY_HMAC_KEY}}
+            - {name: REPLAY_NORMALS, value: {{ .Values.replayNormals | quote }}}
+            - {name: REPLAY_USER_ID, value: {{ .Values.replayUserId | quote }}}
+            - name: META_API_KEY
+              valueFrom: {secretKeyRef: {name: organisms-secret, key: META_API_KEY}}
+          volumeMounts: [{name: shared, mountPath: /shared}]
+      volumes: [{name: shared, persistentVolumeClaim: {claimName: organisms-shared}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: gateway}
+spec:
+  type: ClusterIP
+  selector: {app: gateway}
+  ports: [{port: 18010, targetPort: 18010}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: demo-api-only-from-gateway}
+spec:
+  podSelector: {matchLabels: {app: demo-api}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: gateway}}}]
+      ports: [{port: 18011}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: supervisor-only-from-gateway}
+spec:
+  podSelector: {matchLabels: {app: supervisor}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: gateway}}}]
+      ports: [{port: 18012}]
+{{- if .Values.ingress.enabled }}
+    - from: [{namespaceSelector: {matchLabels: {operator-ingress: "true"}}}]
+      ports: [{port: 18012}]
+{{- end }}
+{{- if .Values.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: organisms-operator
+  annotations: {nginx.ingress.kubernetes.io/auth-type: basic, nginx.ingress.kubernetes.io/auth-secret: organisms-operator-auth, nginx.ingress.kubernetes.io/rewrite-target: /$2, nginx.ingress.kubernetes.io/ssl-redirect: "true"}
+spec:
+{{- if .Values.ingress.tlsSecret }}
+  tls: [{hosts: [{{ .Values.ingress.host | quote }}], secretName: {{ .Values.ingress.tlsSecret | quote }}}]
+{{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - {path: /gateway(/|$)(.*), pathType: ImplementationSpecific, backend: {service: {name: gateway, port: {number: 18010}}}}
+          - {path: /supervisor(/|$)(.*), pathType: ImplementationSpecific, backend: {service: {name: supervisor, port: {number: 18012}}}}
+{{- end }}

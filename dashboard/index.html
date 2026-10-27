@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Server Organisms — Living Immune Layer</title>
+<style>
+  :root { --bg:#f4f6f1; --panel:#ffffff; --line:#d9ded2; --text:#1d2419; --dim:#66705f; --amber:#b97d0a; --red:#c62f34; --green:#2e7d3a; --blue:#2563a8; --mono: ui-monospace, Consolas, monospace; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family: Georgia, serif; }
+  header { display:flex; justify-content:space-between; align-items:baseline; padding:18px 24px 10px; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:8px; }
+  header h1 { font-size:22px; margin:0; }
+  header p { margin:0; color:var(--dim); font-family:var(--mono); font-size:12px; }
+  .flow { display:flex; padding:16px 24px 4px; flex-wrap:wrap; }
+  .step { flex:1 1 150px; min-width:140px; background:var(--panel); border:1.5px solid var(--line); padding:13px 11px; text-align:center; }
+  .step .num { width:32px; height:32px; border-radius:50%; margin:0 auto 7px; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; background:#e8ede2; color:var(--dim); border:2px solid var(--line); }
+  .step.active { border-color:var(--amber); background:#fff8e6; } .step.active .num { background:var(--amber); color:#fff; border-color:var(--amber); }
+  .step.done { border-color:var(--green); background:#edf7ee; } .step.done .num { background:var(--green); color:#fff; border-color:var(--green); }
+  .step.bad { border-color:var(--red); background:#fdecec; } .step.bad .num { background:var(--red); color:#fff; border-color:var(--red); }
+  .step b { display:block; font-size:14px; } .step span { font-size:11.5px; color:var(--dim); line-height:1.45; display:block; }
+  .arrow { align-self:center; padding:0 5px; color:var(--dim); }
+  main { display:grid; grid-template-columns:330px 1fr 360px; gap:14px; padding:14px; }
+  @media (max-width:1100px) { main { grid-template-columns:1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); padding:16px; }
+  h2 { font-size:12.5px; font-family:var(--mono); text-transform:uppercase; letter-spacing:1.1px; color:var(--dim); margin:0 0 11px; }
+  button { display:block; width:100%; text-align:left; background:#eef2e8; color:var(--text); border:1px solid var(--line); padding:10px 12px; margin:7px 0; font-family:var(--mono); font-size:12.5px; cursor:pointer; }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--amber); outline-offset:2px; }
+  button.danger { border-color:#e3b3b5; color:#a11d21; } button.heal { border-color:#a9c9ad; }
+  button:disabled { opacity:.45; }
+  canvas { width:100%; aspect-ratio:1; display:block; background:#f0f3ec; border:1px solid var(--line); }
+  .meta, .log { font-family:var(--mono); font-size:11.5px; line-height:1.65; color:var(--dim); }
+  .meta b, .log b { color:var(--text); }
+  pre { font-family:var(--mono); font-size:11.5px; white-space:pre-wrap; background:#f0f3ec; border:1px solid var(--line); padding:10px; max-height:200px; overflow:auto; }
+  input[type=text] { width:100%; background:#fff; color:var(--text); border:1px solid var(--line); padding:9px; font-family:var(--mono); font-size:12px; }
+  .bar { height:9px; background:#e8ede2; margin:3px 0 9px; } .bar i { display:block; height:100%; background:var(--blue); }
+  footer { padding:0 24px 20px; color:var(--dim); font-family:var(--mono); font-size:11.5px; line-height:1.7; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<header><h1>Server Organisms</h1><p>LIVING IMMUNE LAYER &middot; GATEWAY :18010 &middot; SUPERVISOR :18012</p></header>
+<div class="flow">
+  <div class="step" id="step-1"><div class="num">1</div><b>Your API lives</b><span>Traffic flows through the colony to your app.</span></div><div class="arrow">→</div>
+  <div class="step" id="step-2"><div class="num">2</div><b>Attack sensed</b><span>Exploit pattern wounds the tissue. Cells signal.</span></div><div class="arrow">→</div>
+  <div class="step" id="step-3"><div class="num">3</div><b>Immunity proposed</b><span>Muse + swarm propose a rule. Questioner challenges it.</span></div><div class="arrow">→</div>
+  <div class="step" id="step-4"><div class="num">4</div><b>Canary judges</b><span>Replay: attack must block, normal traffic must pass.</span></div><div class="arrow">→</div>
+  <div class="step" id="step-5"><div class="num">5</div><b>Immune & remembered</b><span>Rule promoted. Organism born. Brain teaches children.</span></div>
+</div>
+<div id="token-banner" style="display:none;margin:12px 24px 0;background:#fff3d6;border:1.5px solid #d9a441;padding:12px 15px;font-size:13.5px">
+  <b>Demo mode — one step:</b> buttons need your token. Use the link printed by the installer, or paste BROKER_TOKEN:
+  <input id="token-in" type="text" style="width:280px"> <button id="token-go" style="display:inline-block;width:auto;padding:6px 12px">Use token</button>
+</div>
+<main>
+  <section>
+    <h2>Control plane (supervisor owns the lease)</h2>
+    <div style="font-size:27px;font-weight:600" id="phase">—</div>
+    <div class="meta" id="meta">connecting…</div>
+    <button id="btn-attack">1 &nbsp; Attack through gateway (SQL injection)</button>
+    <button id="btn-approve" class="heal">2 &nbsp; Approve immunity (promote rule)</button>
+    <button id="btn-ask2">Attack again — should now be BLOCKED</button>
+    <button id="btn-kill" class="danger">Kill switch (supervisor withdraws lease)</button>
+    <button id="btn-revive">Revive colony</button>
+    <button id="btn-reset">Reset demo</button>
+    <div class="meta">Mode: <b id="mode">—</b>. In suggest mode a human approves; in auto mode PASS promotes itself.</div>
+  </section>
+  <section>
+    <h2>Organism tissue — leaky NCA (16 × 16)</h2>
+    <canvas id="grid" width="480" height="480"></canvas>
+    <div class="meta" id="alive-count"></div>
+    <h2 style="margin-top:16px">Evidence</h2>
+    <pre id="evidence">Press “Attack through gateway”.</pre>
+  </section>
+  <section>
+    <h2>Immunity rules</h2>
+    <div class="log" id="rules">—</div>
+    <h2 style="margin-top:14px">Life & chemistry</h2>
+    <div class="log" id="life">—</div>
+    <div id="chem"></div>
+    <h2 style="margin-top:14px">Ask the organisms (English)</h2>
+    <input id="ask-q" type="text" placeholder="what stops sql injection?">
+    <button id="btn-ask">Ask (learns via Muse if unknown)</button>
+    <pre id="ask-a">—</pre>
+  </section>
+</main>
+<footer>Gateway is the public entry (:18010). Your app stays behind it, unmodified. Supervisor is a separate process: it owns the lease, audit log and kill switch — the colony cannot revive itself.</footer>
+<script>
+const GW = "http://127.0.0.1:18010", SUP = "http://127.0.0.1:18012";
+// Tokens arrive in the URL FRAGMENT (#...), never the query: fragments are not
+// sent to servers or written to access logs. Query tokens are scrubbed at once.
+const frag = new URLSearchParams(location.hash.slice(1));
+const TOKEN = frag.get("token") || sessionStorage.getItem("brokerToken") || "";
+const GWTOKEN = frag.get("gwtoken") || sessionStorage.getItem("gatewayToken") || "";
+if (TOKEN) sessionStorage.setItem("brokerToken", TOKEN);
+if (GWTOKEN) sessionStorage.setItem("gatewayToken", GWTOKEN);
+const auth = () => TOKEN ? { "X-Broker-Token": TOKEN } : {};
+const authGW = () => GWTOKEN ? { "X-Broker-Token": GWTOKEN } : {};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let busy = false, lastClass = "sql-injection";
+
+async function refresh() {
+  try {
+    const s = await (await fetch(GW + "/organism/state", { headers: authGW() })).json();
+    const phase = !s.lease_active ? "killed (lease withdrawn)" : s.pending_rules.length ? "immunity pending approval" : s.active_rules.length ? "immune" : "healthy";
+    $("phase").textContent = phase;
+    $("phase").style.color = !s.lease_active ? "var(--dim)" : s.pending_rules.length ? "var(--amber)" : s.active_rules.length ? "var(--green)" : "var(--text)";
+    $("mode").textContent = s.mode;
+    $("meta").innerHTML = "Lease: <b>" + esc(s.lease_active) + "</b> · Blocked: <b>" + esc(s.blocked) + "</b> · Allowed: <b>" + esc(s.allowed) + "</b><br>Alive cells: <b>" + esc(s.grid.alive_cells) + "/" + esc(s.grid.total) + "</b> · Saturation: " + esc(s.grid.saturation);
+    const st = !s.lease_active ? [5, "bad"] : s.pending_rules.length ? [3, "active"] : s.active_rules.length ? [5, "done"] : [1, "done"];
+    for (let i = 1; i <= 5; i++) $("step-" + i).className = "step";
+    for (let i = 1; i < st[0]; i++) $("step-" + i).classList.add("done");
+    $("step-" + st[0]).classList.add(st[1]);
+    const cv = $("grid"), ctx = cv.getContext("2d"), n = 480 / 16;
+    s.grid.cells.forEach((row, y) => row.forEach((c, x) => {
+      ctx.fillStyle = c.d > 0.45 ? "#d93a3e" : c.s > 0.55 ? "#d99a16" : ("rgba(39,122,52," + (0.45 + c.h * 0.55) + ")");
+      ctx.fillRect(x * n + 1, y * n + 1, n - 2, n - 2);
+    }));
+    $("alive-count").textContent = s.grid.alive_cells + " alive · births " + s.life.births + " · deaths " + s.life.deaths + " · max generation " + s.life.max_generation;
+    $("rules").innerHTML = "<b>Active:</b><br>" + (s.active_rules.map(r => "✓ " + esc(r.class) + " — " + esc(r.rule)).join("<br>") || "none yet") + "<br><b>Pending approval:</b><br>" + (s.pending_rules.map(r => "? " + esc(r.class) + " — replay " + esc(JSON.stringify(r.replay))).join("<br>") || "none");
+    if (s.pending_rules.length) lastClass = s.pending_rules[s.pending_rules.length - 1].class;
+    $("life").innerHTML = "Population <b>" + esc(s.life.population) + "</b> · Brain neurons <b>" + esc(s.brain.neurons) + "</b> · instincts " + esc(s.brain.instincts) + " · peers " + s.peers.map(p => esc(p.neurons)).join(", ") + "<br>" + s.life.organisms.slice(0, 5).map(o => "#" + esc(o.id) + " gen" + esc(o.gen) + " E" + esc(o.energy) + " fit" + esc(o.fitness)).join("<br>");
+    $("chem").innerHTML = Object.entries(s.chemistry.levels).map(([k, v]) => esc(k) + " " + esc(v) + '<div class="bar"><i style="width:' + Math.round(Number(v) * 100) + '%"></i></div>').join("");
+    $("btn-approve").disabled = busy || !s.pending_rules.length;
+  } catch (e) { $("meta").textContent = "Colony offline — start: docker compose up --build"; }
+}
+async function attack(label) {
+  busy = true;
+  const r = await fetch(GW + "/api/user/1%20OR%201=1");
+  const t = await r.text();
+  $("evidence").textContent = label + "\nGET gateway/api/user/1 OR 1=1 -> HTTP " + r.status + "\n" + t.slice(0, 500);
+  busy = false; refresh();
+}
+$("btn-attack").onclick = () => attack("Attack (first time — expect leak or pending immunity):");
+$("btn-ask2").onclick = () => attack("Attack again (after approval — expect BLOCKED 403):");
+$("btn-approve").onclick = async () => { const r = await fetch(GW + "/organism/approve", { method: "POST", headers: { ...authGW(), "Content-Type": "application/json" }, body: JSON.stringify({ class: lastClass }) }); $("evidence").textContent = "Approve " + lastClass + ": " + (await r.text()).slice(0, 400); refresh(); };
+$("btn-ask").onclick = async () => { const q = $("ask-q").value.trim(); if (!q) return; const r = await fetch(GW + "/organism/ask", { method: "POST", headers: { ...authGW(), "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) }); const j = await r.json(); $("ask-a").textContent = JSON.stringify(j.answer || j, null, 1).slice(0, 600); refresh(); };
+$("btn-kill").onclick = async () => { await fetch(SUP + "/kill", { method: "POST", headers: auth() }); refresh(); };
+$("btn-revive").onclick = async () => { await fetch(SUP + "/revive", { method: "POST", headers: auth() }); await fetch(GW + "/organism/reset", { method: "POST", headers: authGW() }); refresh(); };
+$("btn-reset").onclick = async () => { await fetch(GW + "/organism/reset", { method: "POST", headers: authGW() }); $("evidence").textContent = "Reset. Colony healthy, no immunity yet."; refresh(); };
+if (!TOKEN || !GWTOKEN) $("token-banner").style.display = "block";
+$("token-go").onclick = () => { const v = $("token-in").value.trim(); if (v) { sessionStorage.setItem("brokerToken", v); location.hash = "token=" + encodeURIComponent(v) + (GWTOKEN ? "&gwtoken=" + encodeURIComponent(GWTOKEN) : ""); location.reload(); } };
+refresh(); setInterval(refresh, 1000);
+</script>
+</body>
+</html>
